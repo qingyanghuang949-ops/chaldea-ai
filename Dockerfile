@@ -9,6 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY chat_system/ chat_system/
 COPY fgo_wiki.db .
+COPY 基本资料/图标/ 基本资料/图标/
+COPY 基本资料/mooncell头像/ 基本资料/mooncell头像/
 
 # Expose port
 EXPOSE 5000
