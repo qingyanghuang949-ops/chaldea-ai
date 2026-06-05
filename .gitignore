@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+dist/
+build/
+*.spec
+*.zip
+基本资料/立绘/
