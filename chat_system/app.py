@@ -88,7 +88,7 @@ def get_provider_config():
         'provider': provider,
         'api_base': config.get('api_base') or preset['api_base'],
         'model': config.get('model') or preset['model'],
-        'api_key': config.get('api_key', ''),
+        'api_key': os.environ.get('API_KEY') or config.get('api_key', ''),
     }
 
 def call_ai_api(messages, temperature=0.85, max_tokens=1024):
