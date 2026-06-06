@@ -72,6 +72,12 @@ PROVIDERS = {
         'models': [],
         'note': '请在模型栏填入你的 Endpoint ID (如 ep-xxxxxxxx)',
     },
+    'daicy': {
+        'name': 'Daicy API (GPT)',
+        'api_base': 'https://api.daicy.vip/v1',
+        'model': 'gpt-4o-mini',
+        'models': ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-3.5-turbo'],
+    },
 }
 
 def get_provider_config():
