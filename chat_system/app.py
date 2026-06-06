@@ -333,6 +333,24 @@ def chat():
     if not profile:
         return jsonify({'error': 'Servant not found'}), 404
 
+    # ── Easter Eggs ──
+    msg = user_message.strip()
+
+    # All servants: "原神牛逼" → respond "原神牛逼"
+    if msg == '原神牛逼':
+        return jsonify({'response': '原神牛逼', 'servant_name': profile['name_jp'], 'servant_name_cn': profile['name_cn']})
+
+    # Female servants: "看看逼" → hidden achievement "原神牛逼"
+    if msg == '看看逼':
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            row = conn.execute('SELECT gender FROM servants WHERE page_id=?', (int(servant_id),)).fetchone()
+            conn.close()
+            if row and row[0] == '女性':
+                return jsonify({'response': '原神牛逼', 'servant_name': profile['name_jp'], 'servant_name_cn': profile['name_cn'], 'easter_egg': True})
+        except:
+            pass
+
     result = _call_ai(profile, user_message, history, language, master_name)
     if 'error' in result:
         return jsonify(result), 502

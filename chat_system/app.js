@@ -429,6 +429,10 @@ async function sendSingleMessage(text){
       addMsgDOM('servant',errMsg);
       chatHistory.push({role:'assistant',content:errMsg});
     }else{
+      // Easter egg notification
+      if(data.easter_egg){
+        showEasterEgg();
+      }
       addMsgDOMWithTypewriter('servant',data.response);
       chatHistory.push({role:'assistant',content:data.response,servant_name_cn:data.servant_name_cn,servant_icon:getServantIcon(currentServant)});
       // Add bond points
@@ -520,6 +524,19 @@ async function saveSettings(){
   const k=document.getElementById('cfgApiKey').value;if(k)d.api_key=k;
   await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
   closeSettings();alert('设置已保存');
+}
+
+// ── Easter Egg ──
+function showEasterEgg(){
+  const el=document.getElementById('easterEggModal');
+  if(el){el.classList.add('show');}
+  // Save achievement
+  const a=JSON.parse(localStorage.getItem('chaldea_achievements')||'{}');
+  a.look=true;
+  localStorage.setItem('chaldea_achievements',JSON.stringify(a));
+}
+function closeEasterEgg(){
+  document.getElementById('easterEggModal').classList.remove('show');
 }
 
 // ── Redeem Code ──
