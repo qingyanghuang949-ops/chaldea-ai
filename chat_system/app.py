@@ -78,6 +78,12 @@ PROVIDERS = {
         'model': 'gpt-5.5',
         'models': ['gpt-5.5', 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1-nano'],
     },
+    'deepseek': {
+        'name': 'DeepSeek',
+        'api_base': 'https://api.deepseek.com/v1',
+        'model': 'deepseek-chat',
+        'models': ['deepseek-chat', 'deepseek-reasoner'],
+    },
 }
 
 def get_provider_config():
