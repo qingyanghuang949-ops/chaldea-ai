@@ -5,3 +5,5 @@ build/
 *.spec
 *.zip
 基本资料/立绘/
+fgo_wiki.db
+基本资料/fgo_wiki.db
