@@ -94,7 +94,10 @@ def get_provider_config():
     redeem_code = request.headers.get('X-Redeem-Code', '') if request else ''
     expected_code = os.environ.get('REDEEM_CODE', '')
     use_owner_key = expected_code and redeem_code == expected_code
-    api_key = (os.environ.get('API_KEY', '') if use_owner_key else '') or config.get('api_key', '')
+    env_key = os.environ.get('API_KEY', '')
+    cfg_key = config.get('api_key', '')
+    api_key = (env_key if use_owner_key else '') or cfg_key
+    print(f'[DEBUG] provider={provider}, redeem_code={redeem_code!r}, expected={expected_code!r}, use_owner_key={use_owner_key}, env_key_set={bool(env_key)}, cfg_key_set={bool(cfg_key)}, final_key_set={bool(api_key)}')
     return {
         'provider': provider,
         'api_base': config.get('api_base') or preset['api_base'],
