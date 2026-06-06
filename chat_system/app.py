@@ -1056,6 +1056,34 @@ def update_config():
         json.dump(config, f, ensure_ascii=False, indent=2)
     return jsonify({'ok': True})
 
+# ─── Redeem Code Endpoint ─────────────────────────────────────────────────
+
+@app.route('/api/redeem', methods=['POST'])
+def redeem():
+    """Check redeem code against env var REDEEM_CODE."""
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data'}), 400
+
+    code = data.get('code', '').strip()
+    if not code:
+        return jsonify({'error': '请输入兑换码'}), 400
+
+    expected = os.environ.get('REDEEM_CODE', '')
+    if not expected:
+        # No redeem code set = open access
+        return jsonify({'ok': True, 'open': True})
+
+    if code == expected:
+        return jsonify({'ok': True})
+    return jsonify({'error': '兑换码无效'}), 403
+
+@app.route('/api/check_access')
+def check_access():
+    """Check if redeem is required."""
+    expected = os.environ.get('REDEEM_CODE', '')
+    return jsonify({'required': bool(expected)})
+
 # ─── Main ────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     host = config.get('host', '0.0.0.0')

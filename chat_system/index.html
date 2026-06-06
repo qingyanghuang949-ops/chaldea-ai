@@ -305,6 +305,53 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 </head>
 <body>
 
+<!-- Redeem Code Overlay -->
+<div id="redeemOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center">
+  <div style="background:var(--card);border-radius:16px;padding:40px 32px;max-width:360px;width:90%;text-align:center;box-shadow:var(--shadow)">
+    <div style="font-size:40px;margin-bottom:12px">🔮</div>
+    <h2 style="font-size:18px;margin-bottom:8px;color:var(--primary)">CHALDEA 迦勒底</h2>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:24px">请输入兑换码以使用 AI 通信终端</p>
+    <input type="text" id="redeemInput" placeholder="输入兑换码" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;text-align:center;margin-bottom:12px;background:var(--bg);color:var(--text);outline:none">
+    <div id="redeemError" style="color:#F44336;font-size:12px;margin-bottom:12px;display:none"></div>
+    <button onclick="submitRedeem()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">确认兑换</button>
+  </div>
+</div>
+
+<script>
+async function checkRedeemAccess(){
+  try{
+    const r=await fetch('/api/check_access').then(r=>r.json());
+    if(!r.required){
+      document.getElementById('redeemOverlay').style.display='none';
+      return;
+    }
+    if(localStorage.getItem('chaldea_redeemed')==='1'){
+      document.getElementById('redeemOverlay').style.display='none';
+      return;
+    }
+    document.getElementById('redeemOverlay').style.display='flex';
+  }catch(e){}
+}
+async function submitRedeem(){
+  const code=document.getElementById('redeemInput').value.trim();
+  const errEl=document.getElementById('redeemError');
+  if(!code){errEl.textContent='请输入兑换码';errEl.style.display='block';return;}
+  try{
+    const r=await fetch('/api/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+    const d=await r.json();
+    if(d.ok){
+      localStorage.setItem('chaldea_redeemed','1');
+      document.getElementById('redeemOverlay').style.display='none';
+    }else{
+      errEl.textContent=d.error||'兑换码无效';
+      errEl.style.display='block';
+    }
+  }catch(e){errEl.textContent='网络错误';errEl.style.display='block';}
+}
+document.getElementById('redeemInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitRedeem()});
+checkRedeemAccess();
+</script>
+
 <div id="selection-screen">
   <div class="header">
     <div class="header-controls">
