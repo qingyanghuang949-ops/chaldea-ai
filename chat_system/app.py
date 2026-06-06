@@ -1089,6 +1089,12 @@ def check_access():
     expected = os.environ.get('REDEEM_CODE', '')
     return jsonify({'required': bool(expected)})
 
+@app.route('/api/announcement')
+def announcement():
+    """Return current announcement from env var ANNOUNCEMENT."""
+    text = os.environ.get('ANNOUNCEMENT', '').strip()
+    return jsonify({'text': text, 'hash': str(hash(text)) if text else ''})
+
 # ─── Main ────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     host = config.get('host', '0.0.0.0')
