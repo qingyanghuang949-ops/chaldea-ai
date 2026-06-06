@@ -14,12 +14,12 @@ COPY chat_system/ chat_system/
 COPY 基本资料/图标/ 基本资料/图标/
 COPY 基本资料/mooncell头像/ 基本资料/mooncell头像/
 
-# Download database from release URL (set DB_URL env var on Render)
-ARG DB_URL
-RUN if [ -n "$DB_URL" ]; then curl -L -o fgo_wiki.db "$DB_URL"; fi
+# Copy entrypoint
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Expose port
 EXPOSE 5000
 
-# Start with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "chat_system.app:app"]
+# Start with entrypoint (downloads db if needed, then starts gunicorn)
+CMD ["./entrypoint.sh"]
