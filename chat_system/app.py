@@ -84,11 +84,16 @@ def get_provider_config():
     """Get resolved provider config with defaults."""
     provider = config.get('provider', 'xiaomi')
     preset = PROVIDERS.get(provider, PROVIDERS['xiaomi'])
+    # Check if redeem code in request header matches env var
+    redeem_code = request.headers.get('X-Redeem-Code', '') if request else ''
+    expected_code = os.environ.get('REDEEM_CODE', '')
+    use_owner_key = expected_code and redeem_code == expected_code
+    api_key = (os.environ.get('API_KEY', '') if use_owner_key else '') or config.get('api_key', '')
     return {
         'provider': provider,
         'api_base': config.get('api_base') or preset['api_base'],
         'model': config.get('model') or preset['model'],
-        'api_key': os.environ.get('API_KEY') or config.get('api_key', ''),
+        'api_key': api_key,
     }
 
 def call_ai_api(messages, temperature=0.85, max_tokens=1024):

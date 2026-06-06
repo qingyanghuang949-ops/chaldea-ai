@@ -419,8 +419,7 @@ async function sendMessage(){
 
 async function sendSingleMessage(text){
   try{
-    const resp=await fetch('/api/chat',{
-      method:'POST',headers:{'Content-Type':'application/json'},
+    const resp=await fetch('/api/chat',{method:'POST',headers:apiHeaders(),
       body:JSON.stringify({servant_id:currentServant.page_id,message:text,history:chatHistory.slice(0,-1),language:lang,master_name:masterName})
     });
     const data=await resp.json();
@@ -446,8 +445,7 @@ async function sendSingleMessage(text){
 
 async function sendGroupMessage(text){
   try{
-    const resp=await fetch('/api/group_chat',{
-      method:'POST',headers:{'Content-Type':'application/json'},
+    const resp=await fetch('/api/group_chat',{method:'POST',headers:apiHeaders(),
       body:JSON.stringify({servant_ids:groupServants.map(s=>s.page_id),message:text,history:chatHistory.slice(0,-1),language:lang,master_name:masterName})
     });
     const data=await resp.json();
@@ -524,6 +522,36 @@ async function saveSettings(){
   closeSettings();alert('设置已保存');
 }
 
+// ── Redeem Code ──
+function getRedeemCode(){return localStorage.getItem('chaldea_redeemed')||'';}
+function apiHeaders(){
+  const h={'Content-Type':'application/json'};
+  const c=getRedeemCode();if(c)h['X-Redeem-Code']=c;
+  return h;
+}
+
+async function submitRedeem(){
+  const code=document.getElementById('cfgRedeem').value.trim();
+  const msgEl=document.getElementById('redeemMsg');
+  if(!code){msgEl.textContent='请输入兑换码';msgEl.style.color='#F44336';msgEl.style.display='block';return;}
+  try{
+    const r=await fetch('/api/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+    const d=await r.json();
+    if(d.ok){
+      localStorage.setItem('chaldea_redeemed',code);
+      msgEl.textContent='✅ 兑换成功！已解锁 MiMo 额度';msgEl.style.color='#4CAF50';msgEl.style.display='block';
+      updateRedeemStatus();
+    }else{
+      msgEl.textContent=d.error||'兑换码无效';msgEl.style.color='#F44336';msgEl.style.display='block';
+    }
+  }catch(e){msgEl.textContent='网络错误';msgEl.style.color='#F44336';msgEl.style.display='block';}
+}
+function updateRedeemStatus(){
+  const code=localStorage.getItem('chaldea_redeemed');
+  const el=document.getElementById('redeemStatus');
+  if(code){el.textContent='（已兑换 ✅）';el.style.color='#4CAF50';}else{el.textContent='';}
+}
+
 // ═══ Init ═══
 async function init(){
   updateLangBtn();updateMasterBtn();
@@ -559,6 +587,7 @@ async function init(){
       document.getElementById('cfgModelHint').textContent=pp.note||('默认: '+pp.model);
     }
   }catch(e){}
+  updateRedeemStatus();
 }
 
 
@@ -786,7 +815,7 @@ async function runCompatibility(){
   const result=document.getElementById('compatResult');
   result.innerHTML='<div class="compat-loading">分析中...</div>';
   try{
-    const resp=await fetch('/api/compatibility',{
+    const resp=await fetch('/api/compatibility',{method:'POST',headers:apiHeaders(),
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({servant_id_1:compatSlot1.page_id,servant_id_2:compatSlot2.page_id,language:lang})
     });
@@ -814,7 +843,7 @@ async function loadMoments(){
   const pool=[...allServants].sort(()=>Math.random()-0.5).slice(0,5);
   const ids=pool.map(s=>s.page_id);
   try{
-    const resp=await fetch('/api/moments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({servant_ids:ids,language:lang})});
+    const resp=await fetch('/api/moments',{method:'POST',headers:apiHeaders(),body:JSON.stringify({servant_ids:ids,language:lang})});
     const data=await resp.json();
     if(data.error){container.innerHTML='<div style="text-align:center;padding:40px;color:#999">'+esc(data.error)+'</div>';return}
     let html='<button class="moment-refresh" onclick="loadMoments()">刷新朋友圈</button>';
@@ -964,7 +993,7 @@ async function showNetwork(){
   const centerIcon=getServantIcon(center);
   const centerName=lang==='jp'?(center.name_jp||center.name_cn):(center.name_cn||center.name_jp);
   try{
-    const resp=await fetch('/api/network',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({servant_id:pid})});
+    const resp=await fetch('/api/network',{method:'POST',headers:apiHeaders(),body:JSON.stringify({servant_id:pid})});
     const data=await resp.json();
     if(data.error){result.innerHTML='<div class="compat-loading">'+esc(data.error)+'</div>';return}
     const related=data.relations||[];
