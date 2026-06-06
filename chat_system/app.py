@@ -29,14 +29,142 @@ def load_config():
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             return json.load(f)
     return {
+        "provider": "xiaomi",
         "api_base": "https://api.xiaomimimo.com/v1",
         "api_key": "",
-        "model": "MiMo-v2.5",
+        "model": "mimo-v2.5-pro",
         "host": "0.0.0.0",
         "port": 5000
     }
 
 config = load_config()
+
+# ─── Provider Presets ────────────────────────────────────────────────────────
+PROVIDERS = {
+    'xiaomi': {
+        'name': '小米 MiMo',
+        'api_base': 'https://api.xiaomimimo.com/v1',
+        'model': 'mimo-v2.5-pro',
+        'models': ['mimo-v2.5-pro', 'mimo-v2-flash', 'mimo-v2.5'],
+    },
+    'openai': {
+        'name': 'ChatGPT (OpenAI)',
+        'api_base': 'https://api.openai.com/v1',
+        'model': 'gpt-4o-mini',
+        'models': ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-3.5-turbo'],
+    },
+    'anthropic': {
+        'name': 'Claude (Anthropic)',
+        'api_base': 'https://api.anthropic.com/v1',
+        'model': 'claude-sonnet-4-20250514',
+        'models': ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+    },
+    'doubao': {
+        'name': '豆包 (字节跳动)',
+        'api_base': 'https://ark.cn-beijing.volces.com/api/v3',
+        'model': 'doubao-1.5-pro-32k',
+        'models': ['doubao-1.5-pro-32k', 'doubao-pro-32k', 'doubao-lite-32k', 'doubao-1.5-lite-32k'],
+    },
+    'volcengine': {
+        'name': '火山方舟 (自定义Endpoint)',
+        'api_base': 'https://ark.cn-beijing.volces.com/api/v3',
+        'model': '',
+        'models': [],
+        'note': '请在模型栏填入你的 Endpoint ID (如 ep-xxxxxxxx)',
+    },
+}
+
+def get_provider_config():
+    """Get resolved provider config with defaults."""
+    provider = config.get('provider', 'xiaomi')
+    preset = PROVIDERS.get(provider, PROVIDERS['xiaomi'])
+    return {
+        'provider': provider,
+        'api_base': config.get('api_base') or preset['api_base'],
+        'model': config.get('model') or preset['model'],
+        'api_key': config.get('api_key', ''),
+    }
+
+def call_ai_api(messages, temperature=0.85, max_tokens=1024):
+    """Unified AI API call supporting all providers. Returns (response_text, error_dict)."""
+    pcfg = get_provider_config()
+    api_key = pcfg['api_key']
+    if not api_key:
+        return None, {'error': 'API Key 未配置'}
+
+    api_base = pcfg['api_base'].rstrip('/')
+    model = pcfg['model']
+    provider = pcfg['provider']
+
+    try:
+        if provider == 'anthropic':
+            system_text = messages[0]['content'] if messages and messages[0]['role'] == 'system' else ''
+            chat_messages = [m for m in messages if m['role'] != 'system']
+            headers = {
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'Content-Type': 'application/json',
+            }
+            body = {
+                'model': model,
+                'max_tokens': max_tokens,
+                'temperature': temperature,
+                'system': system_text,
+                'messages': chat_messages,
+            }
+            resp = requests.post(f'{api_base}/messages', headers=headers, json=body, timeout=30)
+            if resp.status_code != 200:
+                err_msg = f'API returned status {resp.status_code}'
+                try:
+                    err_data = resp.json()
+                    if 'error' in err_data:
+                        err_msg = err_data['error'].get('message', err_msg)
+                except:
+                    pass
+                if resp.status_code == 401:
+                    err_msg = 'API Key 无效，请在设置中更新正确的 API Key'
+                return None, {'error': err_msg, 'detail': resp.text[:500]}
+            result = resp.json()
+            if 'error' in result:
+                return None, {'error': result['error'].get('message', str(result['error']))}
+            ai_text = ''
+            for block in result.get('content', []):
+                if block.get('type') == 'text':
+                    ai_text += block.get('text', '')
+            return ai_text or '原神牛逼', None
+        else:
+            # OpenAI-compatible format
+            headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+            body = {'model': model, 'messages': messages, 'temperature': temperature, 'max_completion_tokens': max_tokens}
+            resp = requests.post(f'{api_base}/chat/completions', headers=headers, json=body, timeout=30)
+            if resp.status_code != 200:
+                err_msg = f'API returned status {resp.status_code}'
+                try:
+                    err_data = resp.json()
+                    if 'error' in err_data:
+                        err_msg = err_data['error'].get('message', err_msg)
+                except:
+                    pass
+                if resp.status_code == 401:
+                    err_msg = 'API Key 无效，请在设置中更新正确的 API Key'
+                if any(kw in err_msg.lower() for kw in ['high risk', 'sensitive', '违规', '审核', 'blocked', 'refused', 'rejected']):
+                    err_msg = '原神牛逼'
+                return None, {'error': err_msg, 'detail': resp.text[:500]}
+            result = resp.json()
+            if 'error' in result:
+                err_msg = result['error'].get('message', str(result['error']))
+                if any(kw in err_msg.lower() for kw in ['high risk', 'sensitive', '违规', '审核', 'blocked', 'refused', 'rejected']):
+                    return '原神牛逼', None
+                return None, {'error': err_msg}
+            msg = result['choices'][0]['message']
+            ai_text = msg.get('content') or msg.get('reasoning_content') or ''
+            if not ai_text or 'considered high risk' in str(ai_text).lower():
+                ai_text = '原神牛逼'
+            return ai_text, None
+    except requests.exceptions.Timeout:
+        return None, {'error': 'API request timed out'}
+    except Exception as e:
+        return None, {'error': str(e)}
 
 # ─── Load data ───────────────────────────────────────────────────────────────
 print("Loading personality profiles...")
@@ -167,49 +295,10 @@ def _call_ai(profile, user_message, history, language, master_name, extra_contex
         messages.append({'role': msg.get('role', 'user'), 'content': msg.get('content', '')})
     messages.append({'role': 'user', 'content': user_message})
 
-    api_key = config.get('api_key', '')
-    if not api_key:
-        name = profile['name_jp'] if language == 'jp' else profile['name_cn']
-        return {'response': f'（请在设置中配置 API Key）\n\n你好，御主。我是{name}。',
-                'servant_name': profile['name_jp'], 'servant_name_cn': profile['name_cn']}
-
-    api_base = config.get('api_base', 'https://api.xiaomimimo.com/v1').rstrip('/')
-    model = config.get('model', 'MiMo-v2.5')
-
-    resp = requests.post(
-        f'{api_base}/chat/completions',
-        headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-        json={'model': model, 'messages': messages, 'temperature': 0.85, 'max_completion_tokens': 1024},
-        timeout=30,
-    )
-
-    if resp.status_code != 200:
-        error_msg = f'API returned status {resp.status_code}'
-        try:
-            err_data = resp.json()
-            if 'error' in err_data:
-                error_msg = err_data['error'].get('message', error_msg)
-        except:
-            pass
-        if resp.status_code == 401:
-            error_msg = 'API Key 无效，请在设置中更新正确的 API Key'
-        if any(kw in error_msg.lower() for kw in ['high risk', 'sensitive', '违规', '审核', 'blocked', 'refused', 'rejected']):
-            error_msg = '原神牛逼'
-        return {'error': error_msg, 'detail': resp.text[:500]}
-
-    result = resp.json()
-    if 'error' in result:
-        error_msg = result['error'].get('message', str(result['error']))
-        if any(kw in error_msg.lower() for kw in ['high risk', 'sensitive', '违规', '审核', 'blocked', 'refused', 'rejected']):
-            return {'response': '原神牛逼', 'servant_name': profile['name_jp'], 'servant_name_cn': profile['name_cn']}
-        return {'error': error_msg}
-
-    msg = result['choices'][0]['message']
-    ai_response = msg.get('content') or msg.get('reasoning_content') or ''
-    if not ai_response or 'considered high risk' in str(ai_response).lower():
-        ai_response = '原神牛逼'
-
-    return {'response': ai_response, 'servant_name': profile['name_jp'], 'servant_name_cn': profile['name_cn']}
+    ai_text, err = call_ai_api(messages, temperature=0.85, max_tokens=1024)
+    if err:
+        return err
+    return {'response': ai_text, 'servant_name': profile['name_jp'], 'servant_name_cn': profile['name_cn']}
 
 
 @app.route('/api/chat', methods=['POST'])
@@ -532,38 +621,15 @@ def compatibility():
 {{"score": 0到100的数字, "analysis": "基于剧情关系的相性分析（200字以内）", "fun_interaction": "基于剧情设定的想象对话（3-4行剧本形式）"}}
 """
 
-    api_key = config.get('api_key', '')
-    if not api_key:
-        return jsonify({'error': 'API Key not configured'}), 500
-
-    api_base = config.get('api_base', 'https://api.xiaomimimo.com/v1').rstrip('/')
-    model = config.get('model', 'MiMo-v2.5')
+    messages = [
+        {'role': 'system', 'content': sys_prompt},
+        {'role': 'user', 'content': user_prompt}
+    ]
+    ai_text, err = call_ai_api(messages, temperature=0.8, max_tokens=512)
+    if err:
+        return jsonify(err), 502
 
     try:
-        resp = requests.post(
-            f'{api_base}/chat/completions',
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json={
-                'model': model,
-                'messages': [
-                    {'role': 'system', 'content': sys_prompt},
-                    {'role': 'user', 'content': user_prompt}
-                ],
-                'temperature': 0.8,
-                'max_completion_tokens': 512
-            },
-            timeout=30
-        )
-
-        if resp.status_code != 200:
-            return jsonify({'error': f'API returned status {resp.status_code}'}), 502
-
-        result = resp.json()
-        if 'error' in result:
-            return jsonify({'error': result['error'].get('message', str(result['error']))}), 502
-
-        ai_text = result['choices'][0]['message'].get('content', '') or \
-                  result['choices'][0]['message'].get('reasoning_content', '')
 
         # Parse JSON from AI response
         # Try to extract JSON from the response
@@ -623,9 +689,6 @@ def compatibility():
             'analysis': analysis,
             'fun_interaction': fun_interaction
         })
-
-    except requests.exceptions.Timeout:
-        return jsonify({'error': 'API request timed out'}), 504
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -651,13 +714,6 @@ def network():
     name = profile.get('name_cn', '')
     story = profile.get('moegirl_summary', '')[:800] or profile.get('personality', '')
 
-    api_key = config.get('api_key', '')
-    if not api_key:
-        return jsonify({'error': 'API Key not configured'}), 500
-
-    api_base = config.get('api_base', 'https://api.xiaomimimo.com/v1').rstrip('/')
-    model = config.get('model', 'MiMo-v2.5')
-
     prompt = f"""你是FGO剧情专家。根据以下从者的剧情背景，找出与他/她关系最密切的6位FGO从者。
 
 从者：{name}
@@ -669,20 +725,15 @@ def network():
 
 只返回JSON数组，不要其他内容。"""
 
+    messages = [
+        {'role': 'system', 'content': '你是FGO专家。只返回JSON数组。'},
+        {'role': 'user', 'content': prompt}
+    ]
+    ai_text, err = call_ai_api(messages, temperature=0.7, max_tokens=500)
+    if err:
+        return jsonify(err), 502
+
     try:
-        resp = requests.post(
-            f'{api_base}/chat/completions',
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json={'model': model, 'messages': [
-                {'role': 'system', 'content': '你是FGO专家。只返回JSON数组。'},
-                {'role': 'user', 'content': prompt}
-            ], 'temperature': 0.7, 'max_completion_tokens': 500},
-            timeout=30,
-        )
-        if resp.status_code != 200:
-            return jsonify({'error': 'API error'}), 502
-        result = resp.json()
-        ai_text = result['choices'][0]['message'].get('content', '')
         # Parse JSON from response
         import re as re_mod
         json_match = re_mod.search(r'\[.*\]', ai_text, re_mod.DOTALL)
@@ -720,13 +771,6 @@ def moments():
     if not servant_ids:
         return jsonify({'error': 'servant_ids is required'}), 400
 
-    api_key = config.get('api_key', '')
-    if not api_key:
-        return jsonify({'error': 'API Key not configured'}), 500
-
-    api_base = config.get('api_base', 'https://api.xiaomimimo.com/v1').rstrip('/')
-    model = config.get('model', 'MiMo-v2.5')
-
     posts = []
     for sid in servant_ids:
         pid = str(sid)
@@ -750,50 +794,30 @@ SNSの朋友圈（WeChatモーメンツ）に投稿してください。
 要求：简短有趣、符合角色性格，1-2句话。
 不要用markdown，只返回朋友圈正文内容。"""
 
-        try:
-            resp = requests.post(
-                f'{api_base}/chat/completions',
-                headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-                json={
-                    'model': model,
-                    'messages': [
-                        {'role': 'system', 'content': sys_prompt},
-                        {'role': 'user', 'content': '发一条朋友圈吧！' if language == 'cn' else '投稿してください！'}
-                    ],
-                    'temperature': 0.9,
-                    'max_completion_tokens': 256
-                },
-                timeout=30
-            )
-
-            if resp.status_code == 200:
-                result = resp.json()
-                if 'error' not in result:
-                    msg = result['choices'][0]['message']
-                    content = (msg.get('content') or msg.get('reasoning_content') or '').strip()
-                    if content:
-                        posts.append({
-                            'servant_id': sid,
-                            'servant_name_cn': name_cn,
-                            'servant_name_jp': name_jp,
-                            'content': content,
-                            'likes': random.randint(1, 999),
-                            'timestamp': random.randint(1609459200, 1735689600)
-                        })
-                        continue
-        except Exception:
-            pass
-
-        # Fallback if AI call failed
-        fallback = {
-            'servant_id': sid,
-            'servant_name_cn': name_cn,
-            'servant_name_jp': name_jp,
-            'content': '今天天气真好~' if language == 'cn' else '今日はいい天気ですね〜',
-            'likes': random.randint(1, 999),
-            'timestamp': random.randint(1609459200, 1735689600)
-        }
-        posts.append(fallback)
+        messages = [
+            {'role': 'system', 'content': sys_prompt},
+            {'role': 'user', 'content': '发一条朋友圈吧！' if language == 'cn' else '投稿してください！'}
+        ]
+        content, err = call_ai_api(messages, temperature=0.9, max_tokens=256)
+        if content:
+            posts.append({
+                'servant_id': sid,
+                'servant_name_cn': name_cn,
+                'servant_name_jp': name_jp,
+                'content': content,
+                'likes': random.randint(1, 999),
+                'timestamp': random.randint(1609459200, 1735689600)
+            })
+        else:
+            # Fallback if AI call failed
+            posts.append({
+                'servant_id': sid,
+                'servant_name_cn': name_cn,
+                'servant_name_jp': name_jp,
+                'content': '今天天气真好~' if language == 'cn' else '今日はいい天気ですね〜',
+                'likes': random.randint(1, 999),
+                'timestamp': random.randint(1609459200, 1735689600)
+            })
 
     return jsonify({'posts': posts})
 
@@ -999,6 +1023,12 @@ def serve_mooncell(filename):
         return send_file(filepath, mimetype='image/png')
     return '', 404
 
+@app.route('/api/providers')
+def list_providers():
+    """Return available provider presets."""
+    return jsonify({k: {'name': v['name'], 'api_base': v['api_base'], 'model': v['model'],
+                        'models': v['models'], 'note': v.get('note', '')} for k, v in PROVIDERS.items()})
+
 @app.route('/api/config', methods=['GET'])
 def get_config():
     """Get current config (without API key)."""
@@ -1008,12 +1038,12 @@ def get_config():
 
 @app.route('/api/config', methods=['POST'])
 def update_config():
-    """Update config (API key, etc.)."""
+    """Update config (provider, api key, etc.)."""
     global config
     data = request.json
     if not data:
         return jsonify({'error': 'No data'}), 400
-    for k in ['api_base', 'api_key', 'model']:
+    for k in ['provider', 'api_base', 'api_key', 'model']:
         if k in data:
             config[k] = data[k]
     with open(CONFIG_PATH, 'w', encoding='utf-8') as f:

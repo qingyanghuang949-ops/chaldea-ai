@@ -462,9 +462,18 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 
 <div class="modal-overlay" id="settingsModal">
   <div class="modal"><h3>设置</h3>
-    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;margin-top:14px">API 地址</label><input type="text" id="cfgApiBase">
-    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;margin-top:14px">API Key</label><input type="password" id="cfgApiKey" placeholder="输入新的 API Key">
-    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;margin-top:14px">模型</label><input type="text" id="cfgModel">
+    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;margin-top:14px">AI 服务商</label>
+    <select id="cfgProvider" onchange="onProviderChange()" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px">
+      <option value="xiaomi">小米 MiMo</option>
+      <option value="openai">ChatGPT (OpenAI)</option>
+      <option value="anthropic">Claude (Anthropic)</option>
+      <option value="doubao">豆包 (字节跳动)</option>
+      <option value="volcengine">火山方舟 (自定义Endpoint)</option>
+    </select>
+    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;margin-top:14px">API Key</label><input type="password" id="cfgApiKey" placeholder="输入 API Key">
+    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;margin-top:14px">API 地址 <span id="cfgApiBaseHint" style="color:var(--text-dim);font-size:11px"></span></label><input type="text" id="cfgApiBase">
+    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;margin-top:14px">模型 <span id="cfgModelHint" style="color:var(--text-dim);font-size:11px"></span></label><input type="text" id="cfgModel" list="modelList">
+    <datalist id="modelList"></datalist>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
       <button class="btn-cancel" onclick="resetAllBonds()" style="width:100%;color:#F44336;border:1px solid #F4433633">重置所有羁绊</button>
     </div>

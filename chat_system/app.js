@@ -494,8 +494,31 @@ function exportChat(){
 // ═══ Settings ═══
 function openSettings(){document.getElementById('settingsModal').classList.add('show')}
 function closeSettings(){document.getElementById('settingsModal').classList.remove('show')}
+
+// ── Provider presets (fetched from backend) ──
+let providerPresets={};
+
+function onProviderChange(){
+  const p=document.getElementById('cfgProvider').value;
+  const preset=providerPresets[p];
+  if(!preset)return;
+  document.getElementById('cfgApiBase').value=preset.api_base||'';
+  document.getElementById('cfgModel').value=preset.model||'';
+  // Update datalist
+  const dl=document.getElementById('modelList');
+  dl.innerHTML='';
+  (preset.models||[]).forEach(m=>{const o=document.createElement('option');o.value=m;dl.appendChild(o);});
+  // Update hints
+  document.getElementById('cfgApiBaseHint').textContent='默认: '+preset.api_base;
+  document.getElementById('cfgModelHint').textContent=preset.note||('默认: '+preset.model);
+}
+
 async function saveSettings(){
-  const d={api_base:document.getElementById('cfgApiBase').value,model:document.getElementById('cfgModel').value};
+  const d={
+    provider:document.getElementById('cfgProvider').value,
+    api_base:document.getElementById('cfgApiBase').value,
+    model:document.getElementById('cfgModel').value
+  };
   const k=document.getElementById('cfgApiKey').value;if(k)d.api_key=k;
   await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
   closeSettings();alert('设置已保存');
@@ -520,8 +543,21 @@ async function init(){
   }
   try{
     const cfg=await fetch('/api/config').then(r=>r.json());
+    // Load provider presets
+    providerPresets=await fetch('/api/providers').then(r=>r.json());
+    document.getElementById('cfgProvider').value=cfg.provider||'xiaomi';
     document.getElementById('cfgApiBase').value=cfg.api_base||'';
     document.getElementById('cfgModel').value=cfg.model||'';
+    // Set up datalist for current provider
+    const cp=cfg.provider||'xiaomi';
+    const pp=providerPresets[cp];
+    if(pp){
+      const dl=document.getElementById('modelList');
+      dl.innerHTML='';
+      (pp.models||[]).forEach(m=>{const o=document.createElement('option');o.value=m;dl.appendChild(o);});
+      document.getElementById('cfgApiBaseHint').textContent='默认: '+pp.api_base;
+      document.getElementById('cfgModelHint').textContent=pp.note||('默认: '+pp.model);
+    }
   }catch(e){}
 }
 
