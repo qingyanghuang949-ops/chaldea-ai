@@ -321,9 +321,44 @@ def _call_ai(profile, user_message, history, language, master_name, extra_contex
     return {'response': ai_text, 'servant_name': profile['name_jp'], 'servant_name_cn': profile['name_cn']}
 
 
+# ── Rate Limiter (per IP, invisible to user) ──────────────────────────────
+import time as _time
+import threading as _threading
+_rate_lock = _threading.Lock()
+_rate_data = {}  # ip -> [timestamps]
+RATE_LIMIT = 10        # max requests per window
+RATE_WINDOW = 60       # window in seconds
+RATE_MAX_WAIT = 90     # max seconds to wait before giving up
+
+def _rate_limit_wait():
+    """Wait until a rate slot opens. Returns True if OK, False if max wait exceeded."""
+    ip = request.remote_addr or 'unknown'
+    now = _time.time()
+    with _rate_lock:
+        if ip not in _rate_data:
+            _rate_data[ip] = []
+        # Clean old entries
+        _rate_data[ip] = [t for t in _rate_data[ip] if now - t < RATE_WINDOW]
+        if len(_rate_data[ip]) < RATE_LIMIT:
+            _rate_data[ip].append(now)
+            return True
+        # Calculate wait time until oldest entry expires
+        wait = RATE_WINDOW - (now - _rate_data[ip][0]) + 0.5
+    # Rate limited — sleep until a slot opens (user sees typing animation)
+    wait = min(wait, RATE_MAX_WAIT)
+    if wait > 0:
+        _time.sleep(wait)
+    with _rate_lock:
+        now2 = _time.time()
+        _rate_data[ip] = [t for t in _rate_data.get(ip, []) if now2 - t < RATE_WINDOW]
+        _rate_data[ip].append(now2)
+    return wait <= RATE_MAX_WAIT
+
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """Send a message to a servant and get AI response."""
+    _rate_limit_wait()  # If too fast, wait silently (user sees 'thinking')
     data = request.json
     if not data:
         return jsonify({'error': 'No data provided'}), 400
@@ -369,6 +404,7 @@ def chat():
 @app.route('/api/group_chat', methods=['POST'])
 def group_chat():
     """Send a message to multiple servants, each responds in turn."""
+    _rate_limit_wait()
     data = request.json
     if not data:
         return jsonify({'error': 'No data provided'}), 400
