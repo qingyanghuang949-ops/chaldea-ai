@@ -12,13 +12,13 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(184,134,11,0.3);border-radius:2px}
 .chaldea-logo{width:80px;height:80px;margin:0 auto 12px;opacity:0.9}
 #selection-screen{display:flex;flex-direction:column;height:100%}
-.header{background:#fff;padding:32px 20px 24px;text-align:center;border-bottom:1px solid var(--border);position:relative}
+.header{background:#fff;padding:20px 20px 16px;text-align:center;border-bottom:1px solid var(--border);position:relative}
 .header::after{content:'';position:absolute;bottom:0;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
 .logo-text{font-size:36px;font-weight:300;letter-spacing:16px;color:var(--primary);margin-bottom:4px}
 .logo-sub{font-size:12px;color:var(--accent);letter-spacing:6px;font-weight:500}
 .header-controls{position:absolute;top:16px;right:16px;display:flex;gap:8px;align-items:center}
 /* Mode Switch */
-.mode-switch{position:relative;top:0;left:0;transform:none;z-index:50;display:flex;background:var(--card);border:1px solid var(--border);border-radius:24px;padding:3px;margin:10px auto;width:fit-content;flex-shrink:0}
+.mode-switch{display:flex;background:var(--card);border:1px solid var(--border);border-radius:24px;padding:3px;margin:12px auto 8px;width:fit-content;flex-shrink:0}
 .mode-btn{padding:8px 20px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all .3s;background:transparent;color:var(--text-dim)}.mode-btn.active{background:var(--accent);color:#fff}.mode-btn:hover:not(.active){color:var(--text)}
 /* Series Filter (Type-Moon) */
 .series-filter{display:none;gap:6px;padding:10px 20px;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--border)}
@@ -382,17 +382,16 @@ checkAnnouncement();
 </script>
 
 <div id="selection-screen">
-  <!-- Mode Switch -->
-  <div class="mode-switch">
-    <button class="mode-btn active" id="modeFgo" onclick="switchAppMode('fgo')">FGO 模式</button>
-    <button class="mode-btn" id="modeTypemoon" onclick="switchAppMode('typemoon')">型月模式</button>
-  </div>
-
   <div class="header">
     <div class="header-controls">
       <button class="master-name-btn" id="masterNameBtn" onclick="openMasterModal()">设定御主</button>
       <button class="lang-toggle" id="langToggle" onclick="toggleLang()">CN</button>
       <button class="settings-btn" onclick="openSettings()">⚙</button>
+    </div>
+    <!-- Mode Switch -->
+    <div class="mode-switch">
+      <button class="mode-btn active" id="modeFgo" onclick="switchAppMode('fgo')">FGO 模式</button>
+      <button class="mode-btn" id="modeTypemoon" onclick="switchAppMode('typemoon')">型月模式</button>
     </div>
     <!-- FGO Logo -->
     <svg class="chaldea-logo show" id="logoFgo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
