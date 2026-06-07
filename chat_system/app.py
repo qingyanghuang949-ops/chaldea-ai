@@ -224,6 +224,13 @@ def serve_js():
 def serve_typemoon_chars():
     return send_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'typemoon_characters.json'), mimetype='application/json')
 
+@app.route('/assets/typemoon_icons/<path:filename>')
+def serve_typemoon_icon(filename):
+    filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'typemoon_icons', filename)
+    if os.path.exists(filepath):
+        return send_file(filepath, mimetype='image/jpeg')
+    return '', 404
+
 @app.route('/api/servants')
 def list_servants():
     """Return list of all servants with basic info."""

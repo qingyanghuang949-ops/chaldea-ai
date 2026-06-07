@@ -225,8 +225,11 @@ function renderTypemoonGrid(){
     if(q&&!c.name_cn.toLowerCase().includes(q)&&!(c.name_jp&&c.name_jp.includes(q)))return;
     const initial=c.name_cn[0];
     const roleTag=c.role?'<span class="cls" style="background:rgba(212,168,67,0.15);color:#d4a843">'+c.role+'</span>':'';
+    const safeName=c.name_cn.replace(/\//g,'_').replace(/（/g,'(').replace(/）/g,')');
+    const iconSrc='/assets/typemoon_icons/'+encodeURIComponent(safeName)+'.jpg';
     html+='<div class="servant-card" onclick="openChatTypemoon(\''+key+'\')">';
-    html+='<div style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--primary);color:var(--accent);margin:0 auto 6px;border:2px solid var(--border)">'+initial+'</div>';
+    html+='<img src="'+iconSrc+'" alt="'+c.name_cn+'" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'" style="width:56px;height:56px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 6px;border:2px solid var(--border)">';
+    html+='<div style="width:56px;height:56px;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:24px;background:var(--primary);color:var(--accent);margin:0 auto 6px;border:2px solid var(--border)">'+initial+'</div>';
     html+='<div class="name">'+c.name_cn+'</div><div class="meta"><span class="cls">'+c.series+'</span>'+roleTag+'</div>';
     html+='</div>';
   });
