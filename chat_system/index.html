@@ -7,7 +7,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#f8f9fa;--card:#fff;--primary:#1a1a2e;--accent:#b8860b;--accent-light:#d4a843;--accent-glow:rgba(184,134,11,0.15);--text:#1a1a2e;--text-dim:#666;--text-light:#999;--border:rgba(0,0,0,0.08);--shadow:0 2px 20px rgba(0,0,0,0.06);--font:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif}
-.typemoon-mode{--bg:#0a0e1a;--card:#111827;--primary:#0d1b2a;--accent:#4a9eff;--accent-light:#7ab8ff;--accent-glow:rgba(74,158,255,0.15);--text:#e0e6f0;--text-dim:#8892a4;--text-light:#5a6478;--border:rgba(74,158,255,0.12);--shadow:0 2px 20px rgba(0,0,0,0.3)}
+.typemoon-mode{--bg:#060d1f;--card:#0a1628;--primary:#0d1b2a;--accent:#4a9eff;--accent-light:#7ab8ff;--accent-glow:rgba(74,158,255,0.15);--text:#c8d6e8;--text-dim:#6b8299;--text-light:#3d5569;--border:rgba(74,158,255,0.1);--shadow:0 2px 20px rgba(0,0,0,0.4)}
 html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text)}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(184,134,11,0.3);border-radius:2px}
 .chaldea-logo{width:80px;height:80px;margin:0 auto 12px;opacity:0.9}
@@ -18,9 +18,8 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 .logo-sub{font-size:12px;color:var(--accent);letter-spacing:6px;font-weight:500}
 .header-controls{position:absolute;top:16px;right:16px;display:flex;gap:8px;align-items:center}
 /* Mode Switch */
-.mode-switch{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:50;display:flex;background:rgba(255,255,255,0.95);border:1px solid var(--border);border-radius:24px;padding:3px;backdrop-filter:blur(10px);box-shadow:0 2px 12px rgba(0,0,0,0.1)}
-.typemoon-mode .mode-switch{background:rgba(17,24,39,0.95)}
-.mode-btn{padding:8px 20px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all .3s;background:transparent;color:var(--text-dim)}.mode-btn.active{background:var(--primary);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.15)}.mode-btn:hover:not(.active){color:var(--text)}
+.mode-switch{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:50;display:flex;background:var(--card);border:1px solid var(--border);border-radius:24px;padding:3px;backdrop-filter:blur(10px)}
+.mode-btn{padding:8px 20px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all .3s;background:transparent;color:var(--text-dim)}.mode-btn.active{background:var(--accent);color:#fff}.mode-btn:hover:not(.active){color:var(--text)}
 /* Series Filter (Type-Moon) */
 .series-filter{display:none;gap:6px;padding:10px 20px;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--border)}
 .series-filter.show{display:flex}
@@ -31,8 +30,38 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 .moon-logo.show{display:block}
 .chaldea-logo.show{display:block}
 /* Type-Moon Header */
-.typemoon-mode .header{background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%)}
-.typemoon-mode .header::before{content:'';position:absolute;top:0;left:0;right:0;height:200px;background:radial-gradient(ellipse at center top,rgba(74,158,255,0.08),transparent 70%);pointer-events:none}
+.typemoon-mode .header{background:var(--card)}
+.typemoon-mode .header::before{content:'';position:absolute;top:0;left:0;right:0;height:200px;background:radial-gradient(ellipse at center top,rgba(74,158,255,0.06),transparent 70%);pointer-events:none}
+/* Type-Moon: override all white backgrounds */
+.typemoon-mode .mode-tabs,
+.typemoon-mode .search-bar,
+.typemoon-mode .filter-tabs,
+.typemoon-mode .filter-tab,
+.typemoon-mode .servant-card,
+.typemoon-mode .group-confirm-bar,
+.typemoon-mode .archive-item,
+.typemoon-mode .chat-header,
+.typemoon-mode .msg.servant .bubble,
+.typemoon-mode .typing .dots,
+.typemoon-mode .chat-input,
+.typemoon-mode .modal,
+.typemoon-mode .ency-header,
+.typemoon-mode .ency-section,
+.typemoon-mode .quiz-card,
+.typemoon-mode .quiz-choice,
+.typemoon-mode .fortune-card,
+.typemoon-mode .compat-result,
+.typemoon-mode .picker-sheet,
+.typemoon-mode .moment-card,
+.typemoon-mode .calendar-event,
+.typemoon-mode .tl-card,
+.typemoon-mode .network-graph,
+.typemoon-mode .network-info,
+.typemoon-mode .achievement-stat,
+.typemoon-mode .achievement-card,
+.typemoon-mode .network-pick select{background:var(--card)!important;color:var(--text)}
+.typemoon-mode .modal .btn-save{background:var(--accent)!important;color:#fff}
+.typemoon-mode .modal .btn-cancel{background:var(--bg)!important;color:var(--text-dim)}
 .master-name-btn,.lang-toggle,.settings-btn{background:none;border:1px solid var(--border);color:var(--accent);cursor:pointer;transition:all .2s}
 .master-name-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500}
 .master-name-btn:hover,.lang-toggle:hover,.settings-btn:hover{border-color:var(--accent);background:var(--accent-glow)}
@@ -379,14 +408,13 @@ checkAnnouncement();
     <svg class="moon-logo" id="logoTypemoon" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <radialGradient id="moonGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="rgba(74,158,255,0.2)"/>
-          <stop offset="100%" stop-color="transparent"/>
+          <stop offset="0%" stop-color="#4a9eff"/>
+          <stop offset="60%" stop-color="#4a9eff" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#4a9eff" stop-opacity="0"/>
         </radialGradient>
       </defs>
-      <circle cx="100" cy="100" r="80" fill="url(#moonGlow)"/>
-      <circle cx="100" cy="100" r="60" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.3"/>
-      <path d="M100 30 C70 30 44 56 44 100 C44 144 70 170 100 170 C78 158 62 132 62 100 C62 64 78 42 100 30Z" fill="var(--accent)" opacity="0.9"/>
-      <circle cx="100" cy="100" r="5" fill="var(--accent-light)" opacity="0.6"/>
+      <circle cx="100" cy="100" r="90" fill="url(#moonGlow)"/>
+      <circle cx="100" cy="100" r="35" fill="#4a9eff" opacity="0.9"/>
     </svg>
     <div class="logo-text" id="logoText">CHALDEA</div>
     <div class="logo-sub" id="logoSub">人理継続保障機関</div>
