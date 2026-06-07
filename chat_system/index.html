@@ -419,18 +419,18 @@ checkAnnouncement();
     <div class="logo-text" id="logoText">CHALDEA</div>
     <div class="logo-sub" id="logoSub">人理継続保障機関</div>
   </div>
-  <div class="mode-tabs">
+  <div class="mode-tabs" id="modeTabs">
     <div class="mode-tab active" data-mode="single" onclick="setMode('single')">单人对话</div>
     <div class="mode-tab" data-mode="group" onclick="setMode('group')">群聊模式</div>
     <div class="mode-tab" data-mode="archive" onclick="setMode('archive')">对话存档</div>
-    <div class="mode-tab" data-mode="ency" onclick="setMode('ency')">图鉴</div>
-    <div class="mode-tab" data-mode="quiz" onclick="setMode('quiz')">问答</div>
-    <div class="mode-tab" data-mode="fortune" onclick="setMode('fortune')">占卜</div>
-    <div class="mode-tab" data-mode="compat" onclick="setMode('compat')">相性</div>
+    <div class="mode-tab" data-mode="ency" onclick="setMode('ency')" id="tabEncy">图鉴</div>
+    <div class="mode-tab" data-mode="quiz" onclick="setMode('quiz')" id="tabQuiz">问答</div>
+    <div class="mode-tab" data-mode="fortune" onclick="setMode('fortune')" id="tabFortune">占卜</div>
+    <div class="mode-tab" data-mode="compat" onclick="setMode('compat')" id="tabCompat">相性</div>
     <div class="mode-tab" data-mode="moments" onclick="setMode('moments')">朋友圈</div>
     <div class="mode-tab" data-mode="calendar" onclick="setMode('calendar')">日历</div>
     <div class="mode-tab" data-mode="timeline" onclick="setMode('timeline')">时间线</div>
-    <div class="mode-tab" data-mode="network" onclick="setMode('network')">关系网</div>
+    <div class="mode-tab" data-mode="network" onclick="setMode('network')" id="tabNetwork">关系网</div>
     <div class="mode-tab" data-mode="achievements" onclick="setMode('achievements')">成就</div>
   </div>
   <!-- Series Filter (Type-Moon mode) -->
@@ -649,12 +649,21 @@ function switchAppMode(mode) {
   document.body.classList.toggle('typemoon-mode', mode === 'typemoon');
   
   // 切换 logo
-  document.getElementById('logoFgo').classList.toggle('show', mode === 'fgo');
   document.getElementById('logoFgo').style.display = mode === 'fgo' ? 'block' : 'none';
-  document.getElementById('logoTypemoon').classList.toggle('show', mode === 'typemoon');
   document.getElementById('logoTypemoon').style.display = mode === 'typemoon' ? 'block' : 'none';
   
-  // 切换标题
+  // 型月模式隐藏的标签
+  const hideInTypemoon = ['tabEncy','tabQuiz','tabFortune','tabCompat','tabNetwork'];
+  hideInTypemoon.forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = mode === 'typemoon' ? 'none' : '';
+  });
+  
+  // 型月模式隐藏职介筛选
+  const filterTabs = document.getElementById('filterTabs');
+  if(filterTabs) filterTabs.style.display = mode === 'typemoon' ? 'none' : '';
+  
+  // 切换标题和搜索框
   if (mode === 'typemoon') {
     document.getElementById('logoText').textContent = 'TYPE-MOON';
     document.getElementById('logoSub').textContent = '型月世界';
@@ -668,6 +677,9 @@ function switchAppMode(mode) {
     document.getElementById('seriesFilter').classList.remove('show');
     renderGrid();
   }
+  
+  // 切回单人对话模式
+  setMode('single');
 }
 
 // Override renderGrid for Type-Moon mode
