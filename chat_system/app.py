@@ -220,6 +220,10 @@ def index():
 def serve_js():
     return send_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app.js'), mimetype='application/javascript')
 
+@app.route('/typemoon_characters.json')
+def serve_typemoon_chars():
+    return send_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'typemoon_characters.json'), mimetype='application/json')
+
 @app.route('/api/servants')
 def list_servants():
     """Return list of all servants with basic info."""
@@ -368,9 +372,29 @@ def chat():
     history = data.get('history', [])
     language = data.get('language', 'cn')
     master_name = data.get('master_name', '') or '前辈'
+    typemoon_prompt = data.get('typemoon_prompt', '')
+    typemoon_name = data.get('typemoon_name', '')
 
-    if not servant_id or not user_message:
-        return jsonify({'error': 'servant_id and message are required'}), 400
+    if not user_message:
+        return jsonify({'error': 'message is required'}), 400
+
+    # Type-Moon mode: use provided prompt directly
+    if typemoon_prompt and typemoon_name:
+        lang_instruction = "\n\n日本語で返信してください、キャラクター設定を維持してください。" if language == 'jp' else ''
+        master_instruction = f"\n\n御主的名字是「{master_name}」，请用这个名字称呼御主。"
+        messages = [
+            {'role': 'system', 'content': typemoon_prompt + master_instruction + lang_instruction}
+        ]
+        for msg_item in history[-20:]:
+            messages.append({'role': msg_item.get('role', 'user'), 'content': msg_item.get('content', '')})
+        messages.append({'role': 'user', 'content': user_message})
+        ai_text, err = call_ai_api(messages, temperature=0.85, max_tokens=1024)
+        if err:
+            return jsonify({'error': err})
+        return jsonify({'response': ai_text, 'servant_name': typemoon_name, 'servant_name_cn': typemoon_name})
+
+    if not servant_id:
+        return jsonify({'error': 'servant_id is required for FGO mode'}), 400
 
     pid = str(servant_id)
     profile = personalities.get(pid)

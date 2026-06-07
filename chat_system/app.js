@@ -215,8 +215,47 @@ function setMode(mode){
   if(mode==='achievements')renderAchievements();
 }
 
+// ═══ Type-Moon Grid ═══
+function renderTypemoonGrid(){
+  const grid=document.getElementById('servantGrid');
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  let html='';
+  Object.entries(typemoonChars).forEach(([key,c])=>{
+    if(typemoonSeries!=='all'&&c.series!==typemoonSeries)return;
+    if(q&&!c.name_cn.toLowerCase().includes(q)&&!(c.name_jp&&c.name_jp.includes(q)))return;
+    const initial=c.name_cn[0];
+    const roleTag=c.role?'<span class="cls" style="background:rgba(212,168,67,0.15);color:#d4a843">'+c.role+'</span>':'';
+    html+='<div class="servant-card" onclick="openChatTypemoon(\''+key+'\')">';
+    html+='<div style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--primary);color:var(--accent);margin:0 auto 6px;border:2px solid var(--border)">'+initial+'</div>';
+    html+='<div class="name">'+c.name_cn+'</div><div class="meta"><span class="cls">'+c.series+'</span>'+roleTag+'</div>';
+    html+='</div>';
+  });
+  grid.innerHTML=html||'<div style="text-align:center;padding:60px;color:var(--text-light)">没有找到匹配的角色</div>';
+}
+
+function openChatTypemoon(key){
+  const c=typemoonChars[key];
+  if(!c)return;
+  // 暂时跳转到 FGO 模式的聊天，后续可以独立实现
+  document.getElementById('selection-screen').style.display='none';
+  document.getElementById('chat-screen').style.display='flex';
+  document.getElementById('chatName').textContent=c.name_cn;
+  document.getElementById('chatMeta').textContent=c.series+(c.role?' · '+c.role:'');
+  document.getElementById('chatAvatars').innerHTML='<div style="width:40px;height:40px;border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--primary);color:var(--accent)">'+c.name_cn[0]+'</div>';
+  document.getElementById('chatMessages').innerHTML='<div class="welcome-msg"><div class="icon">🌙</div><p>开始与'+c.name_cn+'对话吧</p></div>';
+  // 存储当前聊天的型月角色
+  window._currentTypemoonChar = c;
+  window._currentTypemoonKey = key;
+}
+
 // ═══ Grid ═══
 function renderGrid(){
+  // Type-Moon mode
+  if(appMode==='typemoon'){
+    renderTypemoonGrid();
+    return;
+  }
+  // FGO mode (original)
   const grid=document.getElementById('servantGrid');
   const q=document.getElementById('searchInput').value.toLowerCase();
   let filtered=allServants.filter(s=>{
@@ -357,6 +396,8 @@ function startGroupChat(){
 function goBack(){
   autoSave();
   showScreen('selection');currentServant=null;
+  window._currentTypemoonChar=null;
+  window._currentTypemoonKey=null;
 }
 
 // ═══ Messages ═══
@@ -418,6 +459,27 @@ async function sendMessage(){
 }
 
 async function sendSingleMessage(text){
+  // Type-Moon mode
+  if(window._currentTypemoonChar){
+    try{
+      const c=window._currentTypemoonChar;
+      const resp=await fetch('/api/chat',{method:'POST',headers:apiHeaders(),
+        body:JSON.stringify({servant_id:0,message:text,history:chatHistory.slice(0,-1),language:lang,master_name:masterName,typemoon_prompt:c.system_prompt,typemoon_name:c.name_cn})
+      });
+      const data=await resp.json();
+      showTyping(false);
+      if(data.error){
+        addMsgDOM('servant','[错误] '+data.error);
+      }else{
+        addMsgDOMWithTypewriter('servant',data.response);
+        chatHistory.push({role:'assistant',content:data.response});
+      }
+    }catch(e){
+      showTyping(false);addMsgDOM('servant','[连接错误] '+e.message);
+    }
+    return;
+  }
+  // FGO mode (original)
   try{
     const resp=await fetch('/api/chat',{method:'POST',headers:apiHeaders(),
       body:JSON.stringify({servant_id:currentServant.page_id,message:text,history:chatHistory.slice(0,-1),language:lang,master_name:masterName})

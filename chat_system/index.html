@@ -7,6 +7,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#f8f9fa;--card:#fff;--primary:#1a1a2e;--accent:#b8860b;--accent-light:#d4a843;--accent-glow:rgba(184,134,11,0.15);--text:#1a1a2e;--text-dim:#666;--text-light:#999;--border:rgba(0,0,0,0.08);--shadow:0 2px 20px rgba(0,0,0,0.06);--font:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif}
+.typemoon-mode{--bg:#0a0e1a;--card:#111827;--primary:#0d1b2a;--accent:#4a9eff;--accent-light:#7ab8ff;--accent-glow:rgba(74,158,255,0.15);--text:#e0e6f0;--text-dim:#8892a4;--text-light:#5a6478;--border:rgba(74,158,255,0.12);--shadow:0 2px 20px rgba(0,0,0,0.3)}
 html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text)}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(184,134,11,0.3);border-radius:2px}
 .chaldea-logo{width:80px;height:80px;margin:0 auto 12px;opacity:0.9}
@@ -16,6 +17,22 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 .logo-text{font-size:36px;font-weight:300;letter-spacing:16px;color:var(--primary);margin-bottom:4px}
 .logo-sub{font-size:12px;color:var(--accent);letter-spacing:6px;font-weight:500}
 .header-controls{position:absolute;top:16px;right:16px;display:flex;gap:8px;align-items:center}
+/* Mode Switch */
+.mode-switch{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:50;display:flex;background:rgba(255,255,255,0.95);border:1px solid var(--border);border-radius:24px;padding:3px;backdrop-filter:blur(10px);box-shadow:0 2px 12px rgba(0,0,0,0.1)}
+.typemoon-mode .mode-switch{background:rgba(17,24,39,0.95)}
+.mode-btn{padding:8px 20px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all .3s;background:transparent;color:var(--text-dim)}.mode-btn.active{background:var(--primary);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.15)}.mode-btn:hover:not(.active){color:var(--text)}
+/* Series Filter (Type-Moon) */
+.series-filter{display:none;gap:6px;padding:10px 20px;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--border)}
+.series-filter.show{display:flex}
+.series-tab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;border:1px solid var(--border);background:transparent;cursor:pointer;white-space:nowrap;color:var(--text-dim);transition:all .2s}
+.series-tab:hover{border-color:var(--accent);color:var(--accent)}.series-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* Moon Logo */
+.moon-logo{display:none;width:80px;height:80px;margin:0 auto 12px}
+.moon-logo.show{display:block}
+.chaldea-logo.show{display:block}
+/* Type-Moon Header */
+.typemoon-mode .header{background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%)}
+.typemoon-mode .header::before{content:'';position:absolute;top:0;left:0;right:0;height:200px;background:radial-gradient(ellipse at center top,rgba(74,158,255,0.08),transparent 70%);pointer-events:none}
 .master-name-btn,.lang-toggle,.settings-btn{background:none;border:1px solid var(--border);color:var(--accent);cursor:pointer;transition:all .2s}
 .master-name-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500}
 .master-name-btn:hover,.lang-toggle:hover,.settings-btn:hover{border-color:var(--accent);background:var(--accent-glow)}
@@ -336,13 +353,20 @@ checkAnnouncement();
 </script>
 
 <div id="selection-screen">
+  <!-- Mode Switch -->
+  <div class="mode-switch">
+    <button class="mode-btn active" id="modeFgo" onclick="switchAppMode('fgo')">FGO 模式</button>
+    <button class="mode-btn" id="modeTypemoon" onclick="switchAppMode('typemoon')">型月模式</button>
+  </div>
+
   <div class="header">
     <div class="header-controls">
       <button class="master-name-btn" id="masterNameBtn" onclick="openMasterModal()">设定御主</button>
       <button class="lang-toggle" id="langToggle" onclick="toggleLang()">CN</button>
       <button class="settings-btn" onclick="openSettings()">⚙</button>
     </div>
-    <svg class="chaldea-logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <!-- FGO Logo -->
+    <svg class="chaldea-logo show" id="logoFgo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
       <circle cx="100" cy="100" r="90" fill="none" stroke="#1a1a2e" stroke-width="2"/>
       <circle cx="100" cy="100" r="80" fill="none" stroke="#1a1a2e" stroke-width="1"/>
       <path d="M100 20 C60 20, 20 60, 20 100 C20 140, 60 180, 100 180 C140 180, 180 140, 180 100 C180 60, 140 20, 100 20 M100 30 C145 30, 170 65, 170 100 C170 135, 145 170, 100 170 C55 170, 30 135, 30 100 C30 65, 55 30, 100 30" fill="#1a1a2e"/>
@@ -351,8 +375,21 @@ checkAnnouncement();
       <line x1="100" y1="30" x2="100" y2="50" stroke="#1a1a2e" stroke-width="2"/>
       <line x1="100" y1="150" x2="100" y2="170" stroke="#1a1a2e" stroke-width="2"/>
     </svg>
-    <div class="logo-text">CHALDEA</div>
-    <div class="logo-sub">人理継続保障機関</div>
+    <!-- Type-Moon Logo -->
+    <svg class="moon-logo" id="logoTypemoon" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="moonGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="rgba(74,158,255,0.2)"/>
+          <stop offset="100%" stop-color="transparent"/>
+        </radialGradient>
+      </defs>
+      <circle cx="100" cy="100" r="80" fill="url(#moonGlow)"/>
+      <circle cx="100" cy="100" r="60" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.3"/>
+      <path d="M100 30 C70 30 44 56 44 100 C44 144 70 170 100 170 C78 158 62 132 62 100 C62 64 78 42 100 30Z" fill="var(--accent)" opacity="0.9"/>
+      <circle cx="100" cy="100" r="5" fill="var(--accent-light)" opacity="0.6"/>
+    </svg>
+    <div class="logo-text" id="logoText">CHALDEA</div>
+    <div class="logo-sub" id="logoSub">人理継続保障機関</div>
   </div>
   <div class="mode-tabs">
     <div class="mode-tab active" data-mode="single" onclick="setMode('single')">单人对话</div>
@@ -367,6 +404,10 @@ checkAnnouncement();
     <div class="mode-tab" data-mode="timeline" onclick="setMode('timeline')">时间线</div>
     <div class="mode-tab" data-mode="network" onclick="setMode('network')">关系网</div>
     <div class="mode-tab" data-mode="achievements" onclick="setMode('achievements')">成就</div>
+  </div>
+  <!-- Series Filter (Type-Moon mode) -->
+  <div class="series-filter" id="seriesFilter">
+    <button class="series-tab active" data-series="all" onclick="filterSeries('all',this)">全部</button>
   </div>
   <div id="single-panel">
     <div class="search-bar"><input type="text" id="searchInput" placeholder="搜索从者名称..." oninput="renderGrid()"></div>
@@ -531,6 +572,79 @@ checkAnnouncement();
     <div class="btn-row"><button class="btn-cancel" onclick="closeSettings()">取消</button><button class="btn-save" onclick="saveSettings()">保存</button></div>
   </div>
 </div>
+
+<script>
+// === Type-Moon Mode ===
+let typemoonChars = {};
+let typemoonLoaded = false;
+let typemoonSeries = 'all';
+let appMode = 'fgo'; // 'fgo' or 'typemoon'
+
+async function loadTypemoonChars() {
+  if (typemoonLoaded) return;
+  try {
+    const resp = await fetch('typemoon_characters.json');
+    typemoonChars = await resp.json();
+    typemoonLoaded = true;
+    buildSeriesFilter();
+  } catch(e) {
+    console.error('加载型月角色数据失败:', e);
+  }
+}
+
+function buildSeriesFilter() {
+  const series = new Set();
+  Object.values(typemoonChars).forEach(c => { if(c.series) series.add(c.series); });
+  const filter = document.getElementById('seriesFilter');
+  filter.innerHTML = '<button class="series-tab active" data-series="all" onclick="filterSeries(\'all\',this)">全部</button>';
+  series.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'series-tab';
+    btn.dataset.series = s;
+    btn.textContent = s;
+    btn.onclick = function() { filterSeries(s, this); };
+    filter.appendChild(btn);
+  });
+}
+
+function filterSeries(series, btn) {
+  typemoonSeries = series;
+  document.querySelectorAll('.series-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid();
+}
+
+function switchAppMode(mode) {
+  appMode = mode;
+  document.getElementById('modeFgo').classList.toggle('active', mode === 'fgo');
+  document.getElementById('modeTypemoon').classList.toggle('active', mode === 'typemoon');
+  document.body.classList.toggle('typemoon-mode', mode === 'typemoon');
+  
+  // 切换 logo
+  document.getElementById('logoFgo').classList.toggle('show', mode === 'fgo');
+  document.getElementById('logoFgo').style.display = mode === 'fgo' ? 'block' : 'none';
+  document.getElementById('logoTypemoon').classList.toggle('show', mode === 'typemoon');
+  document.getElementById('logoTypemoon').style.display = mode === 'typemoon' ? 'block' : 'none';
+  
+  // 切换标题
+  if (mode === 'typemoon') {
+    document.getElementById('logoText').textContent = 'TYPE-MOON';
+    document.getElementById('logoSub').textContent = '型月世界';
+    document.getElementById('searchInput').placeholder = '搜索角色名称...';
+    document.getElementById('seriesFilter').classList.add('show');
+    loadTypemoonChars().then(() => renderGrid());
+  } else {
+    document.getElementById('logoText').textContent = 'CHALDEA';
+    document.getElementById('logoSub').textContent = '人理継続保障機関';
+    document.getElementById('searchInput').placeholder = '搜索从者名称...';
+    document.getElementById('seriesFilter').classList.remove('show');
+    renderGrid();
+  }
+}
+
+// Override renderGrid for Type-Moon mode
+const _originalRenderGrid = typeof renderGrid === 'function' ? renderGrid : null;
+</script>
 
 <script src="app.js"></script>
 
