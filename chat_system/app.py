@@ -1317,6 +1317,15 @@ def share_chat():
 def get_shared(code):
     """Retrieve a shared conversation by code."""
     shared = _load_shared()
+    # Auto-cleanup: remove entries older than 7 days
+    import time as _t
+    now = int(_t.time() * 1000)
+    week_ms = 7 * 24 * 60 * 60 * 1000
+    expired = [k for k, v in shared.items() if now - v.get('created_at', 0) > week_ms]
+    for k in expired:
+        del shared[k]
+    if expired:
+        _save_shared(shared)
     chat = shared.get(code.upper())
     if not chat:
         return jsonify({'error': '编码无效或已过期'}), 404
