@@ -601,6 +601,10 @@ checkAnnouncement();
     </div>
   </div>
   <div id="archive-panel" class="archive-panel">
+  <div style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)">
+    <input type="text" id="importCodeInput" placeholder="输入对话编码" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px">
+    <button class="btn-save" onclick="importByCode()" style="white-space:nowrap;font-size:12px;padding:6px 14px">导入</button>
+  </div>
     <div class="archive-list" id="archiveList"></div>
   </div>
 

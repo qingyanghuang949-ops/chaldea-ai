@@ -1,0 +1,22 @@
+{
+  "JI80C9": {
+    "history": [
+      {
+        "role": "user",
+        "content": "test"
+      },
+      {
+        "role": "assistant",
+        "content": "hello"
+      }
+    ],
+    "servant_ids": [
+      225
+    ],
+    "servant_names": "test",
+    "master_name": "test",
+    "language": "cn",
+    "is_group": false,
+    "created_at": 1780943825560
+  }
+}

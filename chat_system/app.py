@@ -1270,6 +1270,58 @@ def announcement():
     text = os.environ.get('ANNOUNCEMENT', '').strip()
     return jsonify({'text': text, 'hash': str(hash(text)) if text else ''})
 
+# ─── Share Conversation ──────────────────────────────────────────────────────
+import string as _string
+SHARE_FILE = os.path.join(_APP, 'shared_chats.json')
+
+def _load_shared():
+    if os.path.exists(SHARE_FILE):
+        with open(SHARE_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def _save_shared(data):
+    with open(SHARE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def _gen_code(length=6):
+    chars = _string.ascii_uppercase + _string.digits
+    import random as _rnd
+    return ''.join(_rnd.choice(chars) for _ in range(length))
+
+@app.route('/api/share', methods=['POST'])
+def share_chat():
+    """Save a conversation and return a share code."""
+    data = request.json
+    if not data or 'history' not in data:
+        return jsonify({'error': 'No data'}), 400
+    shared = _load_shared()
+    # Generate unique code
+    while True:
+        code = _gen_code()
+        if code not in shared:
+            break
+    shared[code] = {
+        'history': data.get('history', []),
+        'servant_ids': data.get('servant_ids', []),
+        'servant_names': data.get('servant_names', ''),
+        'master_name': data.get('master_name', ''),
+        'language': data.get('language', 'cn'),
+        'is_group': data.get('is_group', False),
+        'created_at': int(__import__('time').time() * 1000)
+    }
+    _save_shared(shared)
+    return jsonify({'ok': True, 'code': code})
+
+@app.route('/api/share/<code>', methods=['GET'])
+def get_shared(code):
+    """Retrieve a shared conversation by code."""
+    shared = _load_shared()
+    chat = shared.get(code.upper())
+    if not chat:
+        return jsonify({'error': '编码无效或已过期'}), 404
+    return jsonify({'ok': True, 'chat': chat})
+
 # ─── Main ────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     host = config.get('host', '0.0.0.0')

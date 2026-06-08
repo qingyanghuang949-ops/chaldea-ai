@@ -172,6 +172,7 @@ function renderArchiveList(){
     html+='<div class="a-preview">'+esc(preview)+'</div></div>';
     html+='<div class="a-time">'+time+'</div>';
     html+='<div class="a-actions">';
+    html+='<button class="a-btn" onclick="event.stopPropagation();shareArchive(\''+key+'\')" title="分享编码">🔗</button>';
     html+='<button class="a-btn" onclick="event.stopPropagation();exportArchive(\''+key+'\')" title="导出">📥</button>';
     html+='<button class="a-btn" onclick="event.stopPropagation();deleteArchiveConfirm(\''+key+'\')" title="删除">🗑</button>';
     html+='</div></div>';
@@ -212,6 +213,45 @@ function exportArchive(key){
   for(const msg of(data.history||[])){const name=msg.role==='user'?(data.master_name||'前辈'):(msg.servant_name_cn||'从者');text+=name+': '+msg.content+'\n\n'}
   downloadText(text,'chaldea_'+key+'.txt');
 }
+
+async function shareArchive(key){
+  const data=getArchives()[key];if(!data)return;
+  try{
+    const resp=await fetch('/api/share',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({history:data.history,servant_ids:data.servant_ids,servant_names:data.servant_names,master_name:data.master_name,language:data.language,is_group:data.is_group})
+    });
+    const result=await resp.json();
+    if(result.ok){
+      prompt('对话编码（复制后分享给朋友）：', result.code);
+    }else{
+      alert('生成失败: '+(result.error||'未知错误'));
+    }
+  }catch(e){
+    alert('网络错误: '+e.message);
+  }
+}
+
+async function importByCode(){
+  const code=document.getElementById('importCodeInput').value.trim();
+  if(!code){alert('请输入编码');return;}
+  try{
+    const resp=await fetch('/api/share/'+encodeURIComponent(code));
+    const result=await resp.json();
+    if(result.ok){
+      const chat=result.chat;
+      const key='shared_'+code+'_'+Date.now();
+      saveArchiveData(key,chat);
+      renderArchiveList();
+      alert('导入成功！请在存档列表中查看');
+      document.getElementById('importCodeInput').value='';
+    }else{
+      alert(result.error||'编码无效');
+    }
+  }catch(e){
+    alert('网络错误: '+e.message);
+  }
+}
+
 
 // ═══ Typewriter ═══
 function typewriterEffect(bubbleEl,fullText,onDone){
