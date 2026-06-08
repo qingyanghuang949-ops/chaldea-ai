@@ -59,7 +59,9 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 .typemoon-mode .network-info,
 .typemoon-mode .achievement-stat,
 .typemoon-mode .achievement-card,
-.typemoon-mode .network-pick select{background:var(--card)!important;color:var(--text)}
+.typemoon-mode .network-pick select,
+.typemoon-mode .feature-panel,
+.typemoon-mode .archive-panel{background:var(--card)!important;color:var(--text)}
 .typemoon-mode .modal .btn-save{background:var(--accent)!important;color:#fff}
 .typemoon-mode .modal .btn-cancel{background:var(--bg)!important;color:var(--text-dim)}
 .master-name-btn,.lang-toggle,.settings-btn{background:none;border:1px solid var(--border);color:var(--accent);cursor:pointer;transition:all .2s}
@@ -353,6 +355,144 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 </head>
 <body>
 
+<!-- Splash Screen Animation -->
+<div id="splashScreen" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden">
+  <!-- Phase 1: Official Chaldea Logo -->
+  <div id="splashLogo1" style="position:absolute;opacity:0;transition:opacity 0.8s ease">
+    <img src="/assets/chaldea_logo.png" alt="Chaldea" style="width:200px;height:200px;object-fit:contain;filter:brightness(0) invert(1)">
+  </div>
+
+  <!-- Phase 2: Red flash overlay -->
+  <div id="splashRedFlash" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(255,0,0,0);pointer-events:none"></div>
+
+  <!-- Phase 3: Red full screen -->
+  <div id="splashRedFull" style="position:absolute;top:0;left:0;width:100%;height:100%;background:#ff0000;opacity:0;pointer-events:none"></div>
+
+  <!-- Phase 4: User's Chaldea Logo -->
+  <div id="splashLogo2" style="position:fixed;opacity:0;z-index:100000">
+    <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Outer ring -->
+      <circle cx="90" cy="90" r="85" stroke="#fff" stroke-width="2" fill="none"/>
+      <!-- Middle ring -->
+      <circle cx="90" cy="90" r="78" stroke="#aaa" stroke-width="1" fill="none"/>
+      <!-- Inner ring -->
+      <circle cx="90" cy="90" r="72" stroke="#fff" stroke-width="2" fill="none"/>
+      <!-- Central navy oval -->
+      <ellipse cx="90" cy="90" rx="25" ry="40" fill="#0d1b2a" stroke="#1a3a5c" stroke-width="1"/>
+      <!-- Gold dot -->
+      <circle cx="90" cy="90" r="5" fill="#d4a843"/>
+      <!-- Vertical line -->
+      <line x1="90" y1="5" x2="90" y2="175" stroke="#fff" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <!-- Red mask that fades from outside to center -->
+  <div id="splashRedMask" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100001;opacity:0"></div>
+</div>
+
+<script>
+// Splash Screen Animation
+(function() {
+  const splash = document.getElementById('splashScreen');
+  const logo1 = document.getElementById('splashLogo1');
+  const redFlash = document.getElementById('splashRedFlash');
+  const redFull = document.getElementById('splashRedFull');
+  const logo2 = document.getElementById('splashLogo2');
+  const redMask = document.getElementById('splashRedMask');
+
+  // Phase 1: Show official logo (0-1.5s)
+  setTimeout(() => { logo1.style.opacity = '1'; }, 100);
+
+  // Phase 2: Red flash (1.5-3s)
+  setTimeout(() => {
+    let flashCount = 0;
+    const flashInterval = setInterval(() => {
+      redFlash.style.background = flashCount % 2 === 0 ? 'rgba(255,0,0,0.4)' : 'rgba(255,0,0,0)';
+      flashCount++;
+      if (flashCount >= 6) {
+        clearInterval(flashInterval);
+        redFlash.style.background = 'rgba(255,0,0,0)';
+      }
+    }, 250);
+  }, 1500);
+
+  // Phase 3: Full red screen (3-4s)
+  setTimeout(() => {
+    logo1.style.opacity = '0';
+    redFull.style.transition = 'opacity 0.5s ease';
+    redFull.style.opacity = '1';
+  }, 3000);
+
+  // Phase 4: User logo appears at center, then moves to website logo position (4-6s)
+  setTimeout(() => {
+    // Show logo at center
+    logo2.style.left = '50%';
+    logo2.style.top = '50%';
+    logo2.style.transform = 'translate(-50%, -50%) scale(1)';
+    logo2.style.opacity = '1';
+    logo2.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+
+    // Get website logo position after a short delay
+    setTimeout(() => {
+      const websiteLogo = document.getElementById('logoFgo');
+      if (websiteLogo) {
+        const rect = websiteLogo.getBoundingClientRect();
+        const targetX = rect.left + rect.width / 2;
+        const targetY = rect.top + rect.height / 2;
+        const targetSize = rect.width;
+
+        // Move to website logo position and shrink
+        logo2.style.transition = 'left 1.2s ease-in-out, top 1.2s ease-in-out, transform 1.2s ease-in-out';
+        logo2.style.left = targetX + 'px';
+        logo2.style.top = targetY + 'px';
+        logo2.style.transform = 'translate(-50%, -50%) scale(' + (targetSize / 180) + ')';
+      }
+    }, 600);
+  }, 4000);
+
+  // Phase 5: Red fades from outside to center (5.5-7.5s)
+  setTimeout(() => {
+    // Get logo position for gradient center
+    const websiteLogo = document.getElementById('logoFgo');
+    let cx = '50%', cy = '15%';
+    if (websiteLogo) {
+      const rect = websiteLogo.getBoundingClientRect();
+      cx = Math.round((rect.left + rect.width / 2) / window.innerWidth * 100) + '%';
+      cy = Math.round((rect.top + rect.height / 2) / window.innerHeight * 100) + '%';
+    }
+
+    // Create radial gradient mask: red at edges, transparent at center
+    redMask.style.background = 'radial-gradient(circle at ' + cx + ' ' + cy + ', transparent 0%, transparent 30%, rgba(255,0,0,0.8) 60%, rgba(255,0,0,1) 100%)';
+    redMask.style.opacity = '1';
+
+    // Animate the gradient to expand (reveal more of the website)
+    let progress = 30;
+    const revealInterval = setInterval(() => {
+      progress += 2;
+      redMask.style.background = 'radial-gradient(circle at ' + cx + ' ' + cy + ', transparent 0%, transparent ' + progress + '%, rgba(255,0,0,' + Math.max(0, 1 - (progress - 30) / 70) + ') ' + Math.min(100, progress + 30) + '%, rgba(255,0,0,1) 100%)';
+      if (progress >= 100) {
+        clearInterval(revealInterval);
+        redMask.style.opacity = '0';
+        redFull.style.opacity = '0';
+      }
+    }, 40);
+
+    // Fade out logo
+    setTimeout(() => {
+      logo2.style.transition = 'opacity 0.8s ease';
+      logo2.style.opacity = '0';
+    }, 800);
+  }, 5500);
+
+  // Remove splash screen (8s)
+  setTimeout(() => {
+    splash.style.transition = 'opacity 0.3s ease';
+    splash.style.opacity = '0';
+    setTimeout(() => { splash.remove(); }, 300);
+  }, 8000);
+})();
+</script>
+
 <!-- Announcement Popup -->
 <div class="modal-overlay" id="announceModal">
   <div class="modal" style="max-width:400px;text-align:center">
@@ -392,8 +532,7 @@ checkAnnouncement();
     </div>
     <!-- Mode Switch -->
     <div class="mode-switch">
-      <button class="mode-btn active" id="modeFgo" onclick="switchAppMode('fgo')">FGO 模式</button>
-      <button class="mode-btn" id="modeTypemoon" onclick="switchAppMode('typemoon')">型月模式</button>
+      <button class="mode-btn active" id="modeFgo" onclick="switchAppMode(appMode==='fgo'?'typemoon':'fgo')">切换为型月模式</button>
     </div>
     <!-- FGO Logo -->
     <svg class="chaldea-logo show" id="logoFgo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -614,11 +753,42 @@ async function loadTypemoonChars() {
   try {
     const resp = await fetch('typemoon_characters.json');
     typemoonChars = await resp.json();
+    // 给每个型月角色加虚拟 page_id（负数，避免和FGO冲突）
+    Object.entries(typemoonChars).forEach(([key, c], i) => {
+      c.page_id = -(i + 1);
+      c.tm_key = key;
+    });
     typemoonLoaded = true;
     buildSeriesFilter();
   } catch(e) {
     console.error('加载型月角色数据失败:', e);
   }
+}
+
+// 型月模式 helper 函数
+function isTypemoon(pid) { return pid < 0; }
+function getCharName(c) {
+  if (!c) return '';
+  return lang === 'jp' ? (c.name_jp || c.name_cn) : (c.name_cn || c.name_jp || c.name_cn);
+}
+function getTypemoonIcon(c) {
+  if (!c || !c.name_cn) return '';
+  const safeName = c.name_cn.replace(/\//g, '_').replace(/（/g, '(').replace(/）/g, ')');
+  return '/assets/typemoon_icons/' + encodeURIComponent(safeName) + '.jpg';
+}
+function getCharIcon(s) {
+  if (isTypemoon(s.page_id)) return getTypemoonIcon(s);
+  return getServantIcon(s);
+}
+function getCharById(pid) {
+  if (isTypemoon(pid)) {
+    return Object.values(typemoonChars).find(c => c.page_id === pid);
+  }
+  return allServants.find(s => s.page_id === pid);
+}
+function getAllChars() {
+  if (appMode === 'typemoon') return Object.values(typemoonChars);
+  return allServants;
 }
 
 function buildSeriesFilter() {
@@ -644,10 +814,31 @@ function filterSeries(series, btn) {
 }
 
 function switchAppMode(mode) {
+  // 型月模式切换动画
+  if (mode === 'typemoon' && appMode === 'fgo') {
+    playTypoonTransition(() => {
+      applyModeSwitch(mode);
+    });
+    return;
+  }
+  // FGO模式切换动画
+  if (mode === 'fgo' && appMode === 'typemoon') {
+    playFgoTransition(() => {
+      applyModeSwitch(mode);
+    });
+    return;
+  }
+  applyModeSwitch(mode);
+}
+
+function applyModeSwitch(mode) {
   appMode = mode;
   document.getElementById('modeFgo').classList.toggle('active', mode === 'fgo');
-  document.getElementById('modeTypemoon').classList.toggle('active', mode === 'typemoon');
   document.body.classList.toggle('typemoon-mode', mode === 'typemoon');
+  // 修复滚动时露出白色背景
+  document.documentElement.style.background = mode === 'typemoon' ? '#060d1f' : '';
+  // 切换按钮文字
+  document.getElementById('modeFgo').textContent = mode === 'fgo' ? '切换为型月模式' : '切换为FGO模式';
   
   // 切换 logo
   document.getElementById('logoFgo').style.display = mode === 'fgo' ? 'block' : 'none';
@@ -720,6 +911,164 @@ const _originalRenderGrid = typeof renderGrid === 'function' ? renderGrid : null
     <div class="picker-header"><h3 id="pickerTitle">选择从者</h3><button class="close-btn" onclick="closePicker()">✕</button></div>
     <div class="picker-search"><input type="text" id="pickerSearch" placeholder="搜索从者..." oninput="renderPickerGrid()"></div>
     <div class="picker-grid" id="pickerGrid"></div>
+  </div>
+</div>
+
+<!-- FGO Transition Overlay (white screen) -->
+<div id="fgoTransition" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:99997;background:#fff;opacity:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center">
+  <!-- Chaldea Logo -->
+  <img id="fgoTransitionLogo" src="/assets/chaldea_logo.png" alt="Chaldea" style="width:200px;height:200px;object-fit:contain;opacity:0">
+  <!-- Quote -->
+  <div id="fgoTransitionQuote" style="max-width:600px;text-align:center;margin-top:20px;opacity:0">
+    <p style="color:#1a1a2e;font-size:16px;line-height:1.8;margin:0 0 8px">「旅途中再无什么阻我；地球的吸引，毕竟比月亮更强。」</p>
+    <p style="color:#666;font-size:12px;margin:0 0 16px">——弗朗西斯·戈德温《月中人》</p>
+    <p style="color:#888;font-size:11px;line-height:1.6;margin:0;font-style:italic">"nothing stayed me in my Journey... the Attraction of the Earth was so much stronger than that of the Moon"</p>
+    <p style="color:#999;font-size:10px;margin:4px 0 0">——Francis Godwin <i>The Man in the Moone</i></p>
+  </div>
+  <!-- Red flash overlay -->
+  <div id="fgoTransitionRed" style="position:absolute;top:0;left:0;width:100%;height:100%;background:#ff0000;opacity:0;pointer-events:none"></div>
+</div>
+
+<!-- Mode Transition Overlay -->
+<script>
+// Type-Moon Mode Transition Animation
+function playTypoonTransition(callback) {
+  const overlay = document.getElementById('modeTransition');
+  const moon = document.getElementById('transitionMoon');
+  const quote = document.getElementById('transitionQuote');
+  const logoTm = document.getElementById('logoTypemoon');
+
+  overlay.style.pointerEvents = 'all';
+
+  // Phase 1: Fade in black overlay (0-0.5s)
+  overlay.style.transition = 'opacity 0.5s ease';
+  overlay.style.opacity = '1';
+
+  // Phase 2: Moon appears big (0.5-1.5s)
+  setTimeout(() => {
+    moon.style.transition = 'opacity 0.8s ease';
+    moon.style.opacity = '1';
+  }, 500);
+
+  // Phase 3: Quote appears (1-2s)
+  setTimeout(() => {
+    quote.style.transition = 'opacity 0.8s ease';
+    quote.style.opacity = '1';
+  }, 1000);
+
+  // Phase 4: Moon shrinks and moves, quote fades (3-4.5s)
+  setTimeout(() => {
+    // Switch to typemoon mode to get logo position
+    document.body.classList.add('typemoon-mode');
+    document.getElementById('logoTypemoon').style.display = 'block';
+    document.getElementById('logoFgo').style.display = 'none';
+
+    const rect = logoTm.getBoundingClientRect();
+    const targetX = rect.left + rect.width / 2;
+    const targetY = rect.top + rect.height / 2;
+    const targetScale = rect.width / 900;
+
+    const moonRect = moon.getBoundingClientRect();
+    const currentX = moonRect.left + moonRect.width / 2;
+    const currentY = moonRect.top + moonRect.height / 2;
+    const dx = targetX - currentX;
+    const dy = targetY - currentY;
+
+    // Fade out quote
+    quote.style.transition = 'opacity 1s ease';
+    quote.style.opacity = '0';
+
+    // Move and shrink moon
+    moon.style.transition = 'transform 1.5s ease-in-out, opacity 1.5s ease';
+    moon.style.transform = 'translate(' + dx + 'px, ' + dy + 'px) scale(' + targetScale + ')';
+  }, 3000);
+
+  // Phase 5: Fade out overlay (4.5-5.5s)
+  setTimeout(() => {
+    overlay.style.transition = 'opacity 1s ease';
+    overlay.style.opacity = '0';
+    moon.style.opacity = '0';
+  }, 4500);
+
+  // Phase 6: Cleanup and callback (5.5s)
+  setTimeout(() => {
+    overlay.style.pointerEvents = 'none';
+    moon.style.transform = '';
+    moon.style.opacity = '0';
+    quote.style.opacity = '0';
+    callback();
+  }, 5500);
+}
+
+// FGO Mode Transition Animation
+function playFgoTransition(callback) {
+  const overlay = document.getElementById('fgoTransition');
+  const logo = document.getElementById('fgoTransitionLogo');
+  const quote = document.getElementById('fgoTransitionQuote');
+  const red = document.getElementById('fgoTransitionRed');
+
+  overlay.style.pointerEvents = 'all';
+
+  // Phase 1: White screen fade in (0-0.5s)
+  overlay.style.transition = 'opacity 0.5s ease';
+  overlay.style.opacity = '1';
+
+  // Phase 2: Logo appears (0.5-1.5s)
+  setTimeout(() => {
+    logo.style.transition = 'opacity 0.8s ease';
+    logo.style.opacity = '1';
+  }, 500);
+
+  // Phase 3: Quote appears (1-2s)
+  setTimeout(() => {
+    quote.style.transition = 'opacity 0.8s ease';
+    quote.style.opacity = '1';
+  }, 1000);
+
+  // Phase 4: Red screen (3-3.5s)
+  setTimeout(() => {
+    red.style.transition = 'opacity 0.5s ease';
+    red.style.opacity = '1';
+  }, 3000);
+
+  // Phase 5: Red fades (4-5s)
+  setTimeout(() => {
+    red.style.transition = 'opacity 1s ease';
+    red.style.opacity = '0';
+    logo.style.transition = 'opacity 0.5s ease';
+    logo.style.opacity = '0';
+    quote.style.transition = 'opacity 0.5s ease';
+    quote.style.opacity = '0';
+  }, 4000);
+
+  // Phase 6: Cleanup and callback (5s)
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+    callback();
+  }, 5000);
+}
+</script>
+
+<div id="modeTransition" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:99998;background:#000;opacity:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center">
+  <!-- Big Moon -->
+  <svg id="transitionMoon" width="900" height="900" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="opacity:0;transform:scale(1)">
+    <defs>
+      <radialGradient id="moonGlowBig" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#4a9eff"/>
+        <stop offset="60%" stop-color="#4a9eff" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#4a9eff" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="100" cy="100" r="90" fill="url(#moonGlowBig)"/>
+    <circle cx="100" cy="100" r="35" fill="#4a9eff" opacity="0.9"/>
+  </svg>
+  <!-- Quote -->
+  <div id="transitionQuote" style="max-width:600px;text-align:center;margin-top:-20px;opacity:0">
+    <p style="color:#c8d6e8;font-size:16px;line-height:1.8;margin:0 0 8px">「月亮在辽阔的平台上，把高柱的阴影胀大；那些柱子从露台几乎直抵云端。」</p>
+    <p style="color:#6b8299;font-size:12px;margin:0 0 16px">——威廉·贝克福德《瓦泰克》</p>
+    <p style="color:#4a6a8a;font-size:11px;line-height:1.6;margin:0;font-style:italic">"The moon dilated, on a vast platform, the shades of the lofty columns, which reached from the terrace almost to the clouds."</p>
+    <p style="color:#3d5569;font-size:10px;margin:4px 0 0">——William Beckford<i>Vathek</i></p>
   </div>
 </div>
 

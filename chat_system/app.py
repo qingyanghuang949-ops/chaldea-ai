@@ -231,6 +231,13 @@ def serve_typemoon_icon(filename):
         return send_file(filepath, mimetype='image/jpeg')
     return '', 404
 
+@app.route('/assets/chaldea_logo.png')
+def serve_chaldea_logo():
+    filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'chaldea_logo.png')
+    if os.path.exists(filepath):
+        return send_file(filepath, mimetype='image/png')
+    return '', 404
+
 @app.route('/api/servants')
 def list_servants():
     """Return list of all servants with basic info."""
@@ -872,21 +879,113 @@ def moments():
 
     servant_ids = data.get('servant_ids', [])
     language = data.get('language', 'cn')
+    is_typemoon = data.get('typemoon', False)
 
     if not servant_ids:
         return jsonify({'error': 'servant_ids is required'}), 400
 
+    # 加载型月角色数据
+    tm_chars = {}
+    if is_typemoon:
+        tm_path = os.path.join(_APP, 'typemoon_characters.json')
+        if os.path.exists(tm_path):
+            with open(tm_path, 'r', encoding='utf-8') as f:
+                tm_data = json.load(f)
+                for k, v in tm_data.items():
+                    pid = -(int(k) + 1)
+                    tm_chars[pid] = v
+
     posts = []
     for sid in servant_ids:
-        pid = str(sid)
-        profile = personalities.get(pid)
-        if not profile:
-            continue
+        name_cn = ''
+        name_jp = ''
+        personality = ''
+        speech = ''
 
-        name_cn = profile['name_cn']
-        name_jp = profile['name_jp']
-        personality = profile.get('personality', '')
-        speech = profile.get('speech_style', '')
+        if is_typemoon and sid < 0:
+            char = tm_chars.get(sid, {})
+            if not char:
+                continue
+            name_cn = char.get('name_cn', '')
+            name_jp = char.get('name_jp', '')
+            personality = char.get('personality', '')
+            speech = char.get('speech_style', '')
+
+            # 型月角色用预设朋友圈
+            tm_moments = {
+                '卫宫士郎': ['今天帮人修好了自行车，虽然有点烫伤……正义的伙伴就要随时帮助别人！', '切嗣，我一定会成为正义的伙伴。', '做了一桌菜，结果远坂和Saber都来了……家里好热闹。'],
+                '阿尔托莉雅': ['今日的战斗，敌手尚可。骑士王绝不退缩。', '这个……饭团很好吃。', '御主，一起用餐吧。'],
+                '远坂凛': ['べつに…宝石の整理をしただけ。', '魔术协会的那些人真是烦死了。', 'Archer、胜手に行动しないで！'],
+                'EMIYA': ['I am the bone of my sword.', '今天做了咖喱。士郎那家伙还不错。', '正义的伙伴？别开玩笑了。'],
+                '间桐樱': ['前辈、今日もお疲れ様です。', '做了便当，希望前辈喜欢。', '春天到了……花好漂亮。'],
+                '美杜莎': ['……樱が无事で何より。', '读了一本书。安静的午后很好。'],
+                '伊莉雅丝菲尔': ['ねぇねぇ、にいちゃん！今日も游ぼう！', 'berserker、强いよ～', '魔法少女イリヤ、参上！'],
+                '吉尔伽美什': ['ふはははは、この世の宝は全て我のもの。', '雑種ども、我の伟大さに感谢しろ。', '酒でも饮むか。'],
+                '言峰绮礼': ['幸福とは何だろうか。', '今日の教会は静かだ。', '麻婆豆腐、最高だ。'],
+                '卫宫切嗣': ['……ああ。', '铳を磨いている。', '爱丽、イリヤ、守り抜く。'],
+                '爱丽丝菲尔': ['切嗣と一绪に散歩、嬉しかった。', 'イリヤ、游びに行こうね。', 'お花が綺丽です。'],
+                '伊斯坎达尔': ['うはははは、我が军势を见よ！', '征服の旅は続く。', '韦伯、饭だ！'],
+                '韦伯·维尔维特': ['王様、ちょっと待ってください…！', '论文がやっと书けた。', 'はぁ…疲れた。'],
+                '两仪式': ['兴致がないわ。', '黒桐、まだ来るの？', '今日の空は、少し绮丽だった。'],
+                '黑桐干也': ['式さん、大丈夫ですか？', '今日も平和な一日。', '眼镜屋に寄った。'],
+                '苍崎橙子': ['人间は、强いものだ。', '眼镜を买い换えた。', '工房で制作中。'],
+                '浅上藤乃': ['痛い…痛いです…', '今日も、普通の一日。'],
+                '黑桐鲜花': ['兄さん！今日も顽张ります！', '式のことは…认めてないんだから。', 'お花が绮丽。'],
+                '远野志贵': ['なんだ、あれは…', '秋叶、大丈夫か？', '今日も普通の一日。'],
+                '爱尔奎特': ['ねぇねぇ、シキ！一绪に游ぼう！', '私、真祖の姫だよ。', '今日の天気、いいね。'],
+                '希耶尔': ['志贵さん、大丈夫ですか？', '教会での一日。', 'お茶を饮みました。'],
+                '远野秋叶': ['兄様、お帰りなさい。', '远野家は今日も平和。', '红茶が美味しかった。'],
+                '翡翠': ['旦那様、お呼びですか。', '今日もお侧におります。'],
+                '琥珀': ['旦那様、お疲れ様です。', 'ふふ、大丈夫ですよ。', 'お料理、上手にできました。'],
+                '苍崎青子': ['あたしは魔法使だ。', '静希、何やってるの。', '今日も殴る系の一日。'],
+                '久远寺有珠': ['…兴味がない。', '童话は、真实を语る。', 'お茶は饮んだ？'],
+                '静希草十郎': ['すみません。', '都会の生活、惯れてきた。', '青子さん、优しい人。'],
+                '贞德': ['神の声が、闻こえる。', 'フランスを…守りぬきます。', '今日も祈りを捧げます。'],
+                '莫德雷德': ['俺は、父上の敌だ！', 'クレアモランス！', '父上…！'],
+                '塞米拉米斯': ['妾は、空中庭园の女王。', '毒を尝めてみるか。'],
+                '阿斯托尔フォ': ['面白そうだね！', 'ボク、今日も元気だよ！'],
+                '天草四郎': ['人类を…救いたい。', '今日も祈りを捧げる。'],
+                '佐佐木小次郎': ['参るか。', '秘剣・燕返し。', '风がいい。'],
+                '美狄亚': ['Master、お疲れ様です。', '裏切り者には、罚を。'],
+                '库丘林': ['やれやれ、楽しい戦いだ。', '俺の枪、受けてみるか。'],
+                '赫拉克勒ス': ['アアアアアア…！', 'グルルル…'],
+                '葛木宗一郎': ['ああ。', '帰るぞ。'],
+                '藤村大河': ['おはよー！士郎！', '肉だー！肉が食べたい！', '今日も天气がいいね！'],
+                '柳洞一成': ['それは问题だ。', '今日も学生会の仕事。'],
+                '吉尔·德·雷': ['ジャンヌ…！', '神よ、为何…！'],
+                '久宇舞弥': ['了解しました。', '任务完了。'],
+                '凯涅斯': ['私を谁だと思っている。', '魔术研究、进んでいる。'],
+                '迪尔姆德': ['Master、お供いたします。', '骑士の名誉にかけて。'],
+                '远坂时臣': ['魔术师として、耻をかかぬよう。', '凛、父として言わせてもらう。'],
+                '间桐雁夜': ['时臣…！', '樱を…助けなきゃ…。'],
+                '雨生龙之介': ['きれいやなぁ…！', '人间の死、最高の芸术だよ。'],
+                '荒耶宗莲': ['人间とは何か。', '根源に辿り着く。'],
+                '白纯里绪': ['式…仆は式が好きだ。'],
+                '织': ['仆は、杀人冲动があるだけだ。', '式は…仆のもう一つの颜。'],
+                '尼禄·卡奥斯': ['人间とは、所诠その程度のもの。'],
+                '弓冢五月': ['远野くん、一绪に帰ろう。'],
+                '米海尔·罗亚·巴尔丹姆乔恩': ['私は永远に轮回する。'],
+            }
+            moments_list = tm_moments.get(name_cn, [f'{name_cn}发了一条朋友圈'])
+            content = random.choice(moments_list)
+            posts.append({
+                'servant_id': sid,
+                'servant_name_cn': name_cn,
+                'servant_name_jp': name_jp,
+                'content': content,
+                'likes': random.randint(1, 999),
+                'timestamp': random.randint(1609459200, 1735689600)
+            })
+            continue
+        else:
+            pid = str(sid)
+            profile = personalities.get(pid)
+            if not profile:
+                continue
+            name_cn = profile['name_cn']
+            name_jp = profile['name_jp']
+            personality = profile.get('personality', '')
+            speech = profile.get('speech_style', '')
 
         if language == 'jp':
             sys_prompt = f"""あなたは{name_jp}です。性格：{personality}。口調：{speech}。

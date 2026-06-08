@@ -125,10 +125,22 @@ function saveArchiveData(k,d){const a=getArchives();a[k]={...d,updated_at:Date.n
 function deleteArchiveEntry(k){const a=getArchives();delete a[k];localStorage.setItem(ARCHIVE_KEY,JSON.stringify(a))}
 function makeChatKey(ids){return'chat_'+[...ids].sort((a,b)=>a-b).join('_')}
 function autoSave(){
-  if(!chatHistory.length||(!currentServant&&!groupServants.length))return;
-  const ids=isGroupChat?groupServants.map(s=>s.page_id):[currentServant.page_id];
-  const key=makeChatKey(ids);
-  const names=isGroupChat?groupServants.map(s=>lang==='jp'?s.name_jp:s.name_cn).join('、'):(lang==='jp'?currentServant.name_jp:currentServant.name_cn);
+  const tmChar = window._currentTypemoonChar;
+  if(!chatHistory.length||(!currentServant&&!groupServants.length&&!tmChar))return;
+  let ids, key, names;
+  if(isGroupChat){
+    ids=groupServants.map(s=>s.page_id);
+    key=makeChatKey(ids);
+    names=groupServants.map(s=>getCharName(s)).join('、');
+  }else if(tmChar){
+    ids=[tmChar.page_id];
+    key='tm_'+makeChatKey(ids);
+    names=getCharName(tmChar);
+  }else{
+    ids=[currentServant.page_id];
+    key=makeChatKey(ids);
+    names=getCharName(currentServant);
+  }
   saveArchiveData(key,{servant_ids:ids,servant_names:names,is_group:isGroupChat,history:chatHistory,master_name:masterName,language:lang});
 }
 function timeAgo(ts){const d=Date.now()-ts;if(d<60000)return'刚刚';if(d<3600000)return Math.floor(d/60000)+'分钟前';if(d<86400000)return Math.floor(d/3600000)+'小时前';return Math.floor(d/86400000)+'天前'}
@@ -138,14 +150,16 @@ function renderArchiveList(){
   const archives=getArchives();
   const entries=Object.entries(archives).sort((a,b)=>(b[1].updated_at||0)-(a[1].updated_at||0));
   if(!entries.length){list.innerHTML='<div class="archive-empty"><div class="icon">📂</div><p>还没有对话记录</p><p style="font-size:12px;margin-top:8px">开始对话后会自动保存</p></div>';return}
+  // 型月模式只显示型月存档，FGO模式只显示FGO存档
+  const filtered = appMode==='typemoon' ? entries.filter(([k])=>k.startsWith('tm_')) : entries.filter(([k])=>!k.startsWith('tm_'));
+  if(!filtered.length){list.innerHTML='<div class="archive-empty"><div class="icon">📂</div><p>还没有对话记录</p></div>';return}
   let html='';
-  for(const[key,data]of entries){
+  for(const[key,data]of filtered){
     const time=data.updated_at?timeAgo(data.updated_at):'';
     const lastMsg=data.history&&data.history.length?data.history[data.history.length-1].content:'';
     const preview=lastMsg.length>40?lastMsg.slice(0,40)+'...':lastMsg;
-    const sp=allServants.find(s=>s.page_id===data.servant_ids[0]);
-    let iconSrc='';
-    if(sp){if(sp.mooncell_icon)iconSrc='/assets/mooncell/'+encodeURIComponent(sp.mooncell_icon.split('/').pop());else if(sp.icon_file)iconSrc='/assets/icon/'+encodeURIComponent(sp.icon_file.split('/').pop())}
+    const sp=getCharById(data.servant_ids[0]);
+    let iconSrc=sp?getCharIcon(sp):'';
     html+='<div class="archive-item" onclick="resumeChat(\''+key+'\')">';
     if(iconSrc)html+='<img src="'+iconSrc+'" onerror="this.style.display=\'none\'">';
     html+='<div class="a-info"><div class="a-name">'+esc(data.servant_names||'未知')+(data.is_group?' (群聊)':'')+'</div>';
@@ -163,12 +177,26 @@ function resumeChat(key){
   const data=getArchives()[key];if(!data)return;
   chatHistory=data.history||[];
   isGroupChat=data.is_group||false;
-  if(isGroupChat){groupServants=data.servant_ids.map(id=>allServants.find(s=>s.page_id===id)).filter(Boolean);setupGroupChatUI()}
-  else{currentServant=allServants.find(s=>s.page_id===data.servant_ids[0]);if(!currentServant)return;setupSingleChatUI()}
+  const isTM = key.startsWith('tm_');
+  if(isGroupChat){
+    groupServants=data.servant_ids.map(id=>getCharById(id)).filter(Boolean);
+    setupGroupChatUI();
+  }else{
+    const char=getCharById(data.servant_ids[0]);
+    if(!char)return;
+    if(isTM){
+      window._currentTypemoonChar=char;
+      window._currentTypemoonKey=char.tm_key;
+      currentServant=null;
+    }else{
+      currentServant=char;
+      window._currentTypemoonChar=null;
+    }
+    setupSingleChatUI();
+  }
   const c=document.getElementById('chatMessages');c.innerHTML='';
   for(const msg of chatHistory){if(msg.role==='user')addMsgDOM('user',msg.content);else addMsgDOM('servant',msg.content,msg.servant_name_cn,msg.servant_icon)}
   showScreen('chat');document.getElementById('msgInput').focus();
-  localStorage.setItem('chaldea_group_created','1');
   checkAchievements();
 }
 function deleteArchiveConfirm(key){if(!confirm('确定删除这条对话记录？'))return;deleteArchiveEntry(key);renderArchiveList()}
@@ -289,20 +317,22 @@ function renderGrid(){
 function renderGroupGrid(){
   const grid=document.getElementById('groupGrid');
   const q=document.getElementById('groupSearchInput').value.toLowerCase();
-  let filtered=allServants.filter(s=>{
+  const chars = getAllChars();
+  let filtered=chars.filter(s=>{
     if(q)return(s.name_cn&&s.name_cn.toLowerCase().includes(q))||(s.name_jp&&s.name_jp.toLowerCase().includes(q))||(s.nicknames&&s.nicknames.toLowerCase().includes(q));
     return true;
   });
   let html='';
   for(const s of filtered){
-    const stars='★'.repeat(s.rarity||0);
-    const name=lang==='jp'?(s.name_jp||s.name_cn):(s.name_cn||s.name_jp);
-    const iconSrc=getServantIcon(s);
+    const name=getCharName(s);
+    const iconSrc=getCharIcon(s);
     const sel=groupSelected.has(s.page_id);
+    const cls=s.class||s.series||'';
+    const stars=s.rarity?'★'.repeat(s.rarity):'';
     html+='<div class="servant-card'+(sel?' selected':'')+'" onclick="toggleGroupSelect('+s.page_id+',this)">';
     html+='<div class="check-mark">✓</div>';
     if(iconSrc)html+='<img src="'+iconSrc+'" alt="'+name+'" loading="lazy" onerror="this.style.display=\'none\'">';
-    html+='<div class="name">'+name+'</div><div class="meta"><span class="cls">'+s.class+'</span><span class="rarity">'+stars+'</span></div></div>';
+    html+='<div class="name">'+name+'</div><div class="meta"><span class="cls">'+cls+'</span>'+(stars?'<span class="rarity">'+stars+'</span>':'')+'</span></div></div>';
   }
   grid.innerHTML=html;
   updateGroupBar();
@@ -385,11 +415,11 @@ function openChat(pid){
 }
 
 function startGroupChat(){
-  groupServants=[...groupSelected].map(id=>allServants.find(s=>s.page_id===id)).filter(Boolean);
+  groupServants=[...groupSelected].map(id=>getCharById(id)).filter(Boolean);
   if(groupServants.length<2)return;
   chatHistory=[];isGroupChat=true;
   setupGroupChatUI();
-  const names=groupServants.map(s=>lang==='jp'?s.name_jp:s.name_cn).join('、');
+  const names=groupServants.map(s=>getCharName(s)).join('、');
   document.getElementById('chatMessages').innerHTML='<div class="welcome-msg"><div class="icon">👥</div><p>群聊已创建：'+esc(names)+'</p><p style="font-size:12px;margin-top:8px;color:var(--text-light)">从者们会依次回复你的消息</p></div>';
   showScreen('chat');document.getElementById('msgInput').focus();
   localStorage.setItem('chaldea_group_created','1');
@@ -414,6 +444,7 @@ function addMsgDOM(role,text,servantName,servantIcon){
   }else{
     let icon=servantIcon||'';
     if(!icon&&currentServant)icon=getServantIcon(currentServant);
+    if(!icon&&window._currentTypemoonChar)icon=getTypemoonIcon(window._currentTypemoonChar);
     const label=servantName?'<div class="servant-label">'+esc(servantName)+'</div>':'';
     d.innerHTML=(icon?'<img class="msg-icon" src="'+icon+'" onerror="this.style.display=\'none\'">':'')+'<div class="bubble">'+label+formatText(text)+'</div>';
   }
@@ -427,6 +458,7 @@ function addMsgDOMWithTypewriter(role,text,servantName,servantIcon){
   const d=document.createElement('div');d.className='msg '+role;
   let icon=servantIcon||'';
   if(!icon&&currentServant)icon=getServantIcon(currentServant);
+  if(!icon&&window._currentTypemoonChar)icon=getTypemoonIcon(window._currentTypemoonChar);
   const label=servantName?'<div class="servant-label">'+esc(servantName)+'</div>':'';
   const iconHtml=icon?'<img class="msg-icon" src="'+icon+'" onerror="this.style.display=\'none\'">':'';
   d.innerHTML=iconHtml+'<div class="bubble">'+label+'<span class="tw-content"></span></div>';
@@ -442,7 +474,7 @@ function showTyping(v){document.getElementById('typing').style.display=v?'flex':
 // ═══ Send ═══
 async function sendMessage(){
   const inp=document.getElementById('msgInput');
-  const text=inp.value.trim();if(!text||(!currentServant&&!groupServants.length))return;
+  const text=inp.value.trim();if(!text||(!currentServant&&!groupServants.length&&!window._currentTypemoonChar))return;
   if(isTyping){cancelTypewriter();return}
   inp.value='';inp.style.height='auto';
   addMsgDOM('user',text);
@@ -467,7 +499,7 @@ async function sendSingleMessage(text){
     try{
       const c=window._currentTypemoonChar;
       const resp=await fetch('/api/chat',{method:'POST',headers:apiHeaders(),
-        body:JSON.stringify({servant_id:0,message:text,history:chatHistory.slice(0,-1),language:lang,master_name:masterName,typemoon_prompt:c.system_prompt,typemoon_name:c.name_cn})
+        body:JSON.stringify({servant_id:0,message:text,history:chatHistory.slice(0,-1),language:lang,master_name:masterName,typemoon_prompt:c.system_prompt,typemoon_name:c.name_cn,typemoon_address:c.address_user||''})
       });
       const data=await resp.json();
       showTyping(false);
@@ -921,18 +953,19 @@ let momentsLiked=new Set(JSON.parse(localStorage.getItem('chaldea_moments_liked'
 async function loadMoments(){
   const container=document.getElementById('momentsContainer');
   container.innerHTML='<button class="moment-refresh" onclick="loadMoments()">刷新朋友圈</button><div style="text-align:center;padding:40px;color:var(--text-light)">生成中...</div>';
-  // Pick 5 random servants
-  const pool=[...allServants].sort(()=>Math.random()-0.5).slice(0,5);
+  const chars = getAllChars();
+  const pool=[...chars].sort(()=>Math.random()-0.5).slice(0,5);
   const ids=pool.map(s=>s.page_id);
+  const isTM = appMode === 'typemoon';
   try{
-    const resp=await fetch('/api/moments',{method:'POST',headers:apiHeaders(),body:JSON.stringify({servant_ids:ids,language:lang})});
+    const resp=await fetch('/api/moments',{method:'POST',headers:apiHeaders(),body:JSON.stringify({servant_ids:ids,language:lang,typemoon:isTM})});
     const data=await resp.json();
     if(data.error){container.innerHTML='<div style="text-align:center;padding:40px;color:#999">'+esc(data.error)+'</div>';return}
     let html='<button class="moment-refresh" onclick="loadMoments()">刷新朋友圈</button>';
     for(const post of(data.posts||[])){
-      const sp=allServants.find(s=>s.page_id===post.servant_id);
-      const icon=sp?getServantIcon(sp):'';
-      const name=lang==='jp'?(post.servant_name_jp||post.servant_name_cn):(post.servant_name_cn||post.servant_name_jp);
+      const sp=getCharById(post.servant_id);
+      const icon=sp?getCharIcon(sp):'';
+      const name=getCharName(sp)||post.servant_name_cn||'';
       const liked=momentsLiked.has(post.servant_id+'_'+post.timestamp);
       html+='<div class="moment-card">';
       html+='<div class="moment-header">';
@@ -954,13 +987,22 @@ function likeMoment(el,key){
   else{momentsLiked.add(key);el.classList.add('liked');el.innerHTML='❤️ '+(parseInt(el.textContent.match(/\d+/)?.[0]||'0')+1)}
   localStorage.setItem('chaldea_moments_liked',JSON.stringify([...momentsLiked]));
 }
-function commentMoment(pid){openChat(pid)}
+function commentMoment(pid){
+  const char=getCharById(pid);
+  if(char){
+    if(isTypemoon(pid)){window._currentTypemoonChar=char;window._currentTypemoonKey=char.tm_key;currentServant=null}
+    else{currentServant=char;window._currentTypemoonChar=null}
+    openChat(pid);
+  }
+}
 
 // ═══ Calendar ═══
 let calYear,calMonth;
 const BIRTHDAYS={1:[{d:1,n:'冲田总司'},{d:30,n:'贞德'}],2:[{d:3,n:'尼禄'},{d:14,n:'BB'}],3:[{d:8,n:'玛修'},{d:22,n:'斯卡哈'}],4:[{d:6,n:'梅林'},{d:15,n:'迦尔纳'}],5:[{d:1,n:'伊斯坎达尔'},{d:24,n:'恩奇都'}],6:[{d:1,n:'阿尔托莉雅'},{d:19,n:'吉尔伽美什'}],7:[{d:7,n:'库丘林'},{d:30,n:'阿周那'}],8:[{d:1,n:'阿斯托尔福'},{d:15,n:'伊什塔尔'}],9:[{d:20,n:'美杜莎'},{d:29,n:'玉藻前'}],10:[{d:1,n:'弗拉德三世'},{d:21,n:'杰克'}],11:[{d:3,n:'开膛手杰克'},{d:22,n:'南丁格尔'}],12:[{d:1,n:'玛尔达'},{d:25,n:'阿比盖尔'}]};
+const TM_BIRTHDAYS={1:[{d:15,n:'远野秋叶'}],2:[{d:3,n:'苍崎橙子'}],3:[{d:12,n:'两仪式'}],4:[{d:11,n:'卫宫士郎'}],5:[{d:3,n:'远坂凛'}],6:[{d:9,n:'间桐樱'}],7:[{d:7,n:'远野志贵'}],8:[{d:15,n:'黑桐干也'}],9:[{d:22,n:'爱尔奎特'}],10:[{d:4,n:'苍崎青子'}],11:[{d:11,n:'黑桐鲜花'}],12:[{d:20,n:'阿尔托莉雅'}]};
 function renderCalendar(){
   const now=new Date();
+  const bdays = appMode==='typemoon' ? TM_BIRTHDAYS : BIRTHDAYS;
   if(!calYear){calYear=now.getFullYear();calMonth=now.getMonth()+1}
   const container=document.getElementById('calendarContainer');
   const firstDay=new Date(calYear,calMonth-1,1).getDay();
@@ -975,7 +1017,7 @@ function renderCalendar(){
   const dayNames=['日','一','二','三','四','五','六'];
   for(const d of dayNames)html+='<div class="calendar-day-header">'+d+'</div>';
   for(let i=0;i<firstDay;i++)html+='<div class="calendar-day empty"></div>';
-  const monthBdays=BIRTHDAYS[calMonth]||[];
+  const monthBdays=bdays[calMonth]||[];
   for(let d=1;d<=daysInMonth;d++){
     const hasBday=monthBdays.some(b=>b.d===d);
     const cls=['calendar-day'];
@@ -997,8 +1039,8 @@ function renderCalendar(){
   container.innerHTML=html;
 }
 function showDayEvents(m,d){
-  const bdays=BIRTHDAYS[m]||[];
-  const match=bdays.filter(b=>b.d===d);
+  const bdayList=bdays[m]||[];
+  const match=bdayList.filter(b=>b.d===d);
   if(match.length){
     alert(m+'月'+d+'日 生日: '+match.map(b=>b.n).join('、'));
   }
@@ -1007,6 +1049,10 @@ function showDayEvents(m,d){
 // ═══ Timeline ═══
 function renderTimeline(){
   const container=document.getElementById('timelineContainer');
+  if(appMode==='typemoon'){
+    renderTypemoonTimeline(container);
+    return;
+  }
   const sorted=[...allServants].sort((a,b)=>(a.collection_no||9999)-(b.collection_no||9999));
   // FGO release wave labels (approximate collection number ranges)
   const waves=[
@@ -1046,6 +1092,35 @@ function renderTimeline(){
     html+='<div class="meta">'+s.class+'</div>';
     html+='<div class="rarity">'+stars+'</div>';
     html+='</div></div>';
+  }
+  container.innerHTML=html;
+}
+
+function renderTypemoonTimeline(container){
+  const chars = Object.values(typemoonChars);
+  const seriesOrder = ['Fate/stay night','Fate/Zero','空之境界','月姬','魔法使之夜','Fate/Apocrypha'];
+  const seriesYears = {'Fate/stay night':'2004','Fate/Zero':'2006-2007','空之境界':'1998-1999','月姬':'2000','魔法使之夜':'2012','Fate/Apocrypha':'2012'};
+  let html='<h2 style="text-align:center;margin-bottom:8px;color:var(--accent)">型月作品时间线</h2>';
+  html+='<p style="text-align:center;font-size:12px;color:var(--text-dim);margin-bottom:24px">按作品分类 · 共'+chars.length+'个角色</p>';
+  for(const series of seriesOrder){
+    const group = chars.filter(c=>c.series===series);
+    if(!group.length) continue;
+    html+='<div style="text-align:center;margin:24px 0 16px;padding:8px;background:rgba(74,158,255,0.1);border-radius:8px">';
+    html+='<span style="font-weight:700;color:var(--accent);font-size:13px">'+series+'</span>';
+    html+='<span style="font-size:11px;color:var(--text-dim);margin-left:8px">'+(seriesYears[series]||'')+'</span></div>';
+    for(const c of group){
+      const name=getCharName(c);
+      const icon=getTypemoonIcon(c);
+      const role=c.role||'';
+      html+='<div class="timeline-item">';
+      html+='<div class="tl-dot"></div>';
+      html+='<div class="tl-card">';
+      if(icon)html+='<img src="'+icon+'" onerror="this.style.display=\'none\'">';
+      html+='<div class="name">'+esc(name)+'</div>';
+      html+='<div class="meta">'+series+'</div>';
+      if(role)html+='<div class="rarity" style="color:#d4a843">'+role+'</div>';
+      html+='</div></div>';
+    }
   }
   container.innerHTML=html;
 }
@@ -1131,6 +1206,14 @@ const ACHIEVEMENTS=[
   {id:'ten_pulls',name:'抽卡模拟',desc:'在抽卡模拟器中抽10次',icon:'🎰',check:()=>{return(parseInt(localStorage.getItem('chaldea_gacha_count')||'0'))>=10}},
   {id:'compat',name:'相性测试',desc:'完成一次从者相性测试',icon:'💕',check:()=>{return localStorage.getItem('chaldea_compat_done')==='1'}},
 ];
+const TM_ACHIEVEMENTS=[
+  {id:'tm_first_chat',name:'型月初遇',desc:'与第一位型月角色对话',icon:'🌙',check:()=>{const a=getArchives();return Object.keys(a).some(k=>k.startsWith('tm_'))}},
+  {id:'tm_chat_5',name:'型月交际',desc:'与5位不同的型月角色对话',icon:'⭐',check:()=>{const a=getArchives();return Object.keys(a).filter(k=>k.startsWith('tm_')).length>=5}},
+  {id:'tm_chat_10',name:'型月百晓',desc:'与10位不同的型月角色对话',icon:'🌟',check:()=>{const a=getArchives();return Object.keys(a).filter(k=>k.startsWith('tm_')).length>=10}},
+  {id:'tm_group',name:'型月群英',desc:'创建一次型月群聊',icon:'👥',check:()=>{return localStorage.getItem('tm_group_created')==='1'}},
+  {id:'tm_fsn',name:'FSN全角色',desc:'与所有FSN角色对话',icon:'⚔️',check:()=>{const a=getArchives();const fsn=['卫宫士郎','阿尔托莉雅','远坂凛','间桐樱','美杜莎','伊莉雅丝菲尔','吉尔伽美什','言峰绮礼'];return fsn.every(n=>Object.keys(a).some(k=>k.includes(n)))}},
+  {id:'tm_kara',name:'空境探索者',desc:'与所有空之境界角色对话',icon:'🔪',check:()=>{const a=getArchives();const kara=['两仪式','黑桐干也','苍崎橙子'];return kara.every(n=>Object.keys(a).some(k=>k.includes(n)))}},
+];
 function getAchievementData(){try{return JSON.parse(localStorage.getItem('chaldea_achievements')||'{}')}catch{return{}}}
 function saveAchievementData(d){localStorage.setItem('chaldea_achievements',JSON.stringify(d))}
 function checkAchievements(){
@@ -1157,14 +1240,15 @@ function showAchievementPopup(achievement){
 function renderAchievements(){
   const container=document.getElementById('achievementsContainer');
   const data=getAchievementData();
-  const unlocked=Object.keys(data).length;
-  let html='<h2 style="text-align:center;margin-bottom:20px;color:var(--primary)">成就系统</h2>';
+  const achievements = appMode==='typemoon' ? TM_ACHIEVEMENTS : ACHIEVEMENTS;
+  const unlocked=Object.keys(data).filter(id=>achievements.some(a=>a.id===id)).length;
+  let html='<h2 style="text-align:center;margin-bottom:20px;color:'+(appMode==='typemoon'?'var(--accent)':'var(--primary)')+'">'+(appMode==='typemoon'?'型月成就':'成就系统')+'</h2>';
   html+='<div class="achievement-stats">';
   html+='<div class="achievement-stat"><div class="num">'+unlocked+'</div><div class="label">已解锁</div></div>';
-  html+='<div class="achievement-stat"><div class="num">'+ACHIEVEMENTS.length+'</div><div class="label">总成就</div></div>';
-  html+='<div class="achievement-stat"><div class="num">'+Math.round(unlocked/ACHIEVEMENTS.length*100)+'%</div><div class="label">完成度</div></div>';
+  html+='<div class="achievement-stat"><div class="num">'+achievements.length+'</div><div class="label">总成就</div></div>';
+  html+='<div class="achievement-stat"><div class="num">'+Math.round(unlocked/achievements.length*100)+'%</div><div class="label">完成度</div></div>';
   html+='</div>';
-  for(const a of ACHIEVEMENTS){
+  for(const a of achievements){
     const isUnlocked=!!data[a.id];
     html+='<div class="achievement-card '+(isUnlocked?'unlocked':'locked')+'">';
     html+='<div class="icon">'+a.icon+'</div>';
