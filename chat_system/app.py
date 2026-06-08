@@ -96,7 +96,7 @@ def get_provider_config():
     use_owner_key = expected_code and redeem_code == expected_code
     env_key = os.environ.get('API_KEY', '')
     cfg_key = config.get('api_key', '')
-    api_key = (env_key if use_owner_key else '') or cfg_key or env_key
+    api_key = env_key or cfg_key
     print(f'[DEBUG] provider={provider}, redeem_code={redeem_code!r}, expected={expected_code!r}, use_owner_key={use_owner_key}, env_key_set={bool(env_key)}, cfg_key_set={bool(cfg_key)}, final_key_set={bool(api_key)}')
     return {
         'provider': provider,
