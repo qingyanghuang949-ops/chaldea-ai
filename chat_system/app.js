@@ -479,6 +479,11 @@ async function sendMessage(){
   inp.value='';inp.style.height='auto';
   addMsgDOM('user',text);
   chatHistory.push({role:'user',content:text});
+  // 彩蛋：迦勒底亚斯是谎言
+  if(text.includes('迦勒底亚斯是谎言')&&appMode==='fgo'){
+    localStorage.setItem('chaldeas_lie','1');
+    checkAchievements();
+  }
   document.getElementById('sendBtn').disabled=true;
   showTyping(true);
 
@@ -1205,6 +1210,7 @@ const ACHIEVEMENTS=[
   {id:'ency_5',name:'图鉴收藏家',desc:'查看5位从者的图鉴',icon:'📖',check:()=>{return(parseInt(localStorage.getItem('chaldea_ency_count')||'0'))>=5}},
   {id:'ten_pulls',name:'抽卡模拟',desc:'在抽卡模拟器中抽10次',icon:'🎰',check:()=>{return(parseInt(localStorage.getItem('chaldea_gacha_count')||'0'))>=10}},
   {id:'compat',name:'相性测试',desc:'完成一次从者相性测试',icon:'💕',check:()=>{return localStorage.getItem('chaldea_compat_done')==='1'}},
+  {id:'chaldeas_lie',name:'马里斯比利的阴谋',desc:'???',icon:'🔮',check:()=>{return localStorage.getItem('chaldeas_lie')==='1'}},
 ];
 const TM_ACHIEVEMENTS=[
   {id:'tm_first_chat',name:'型月初遇',desc:'与第一位型月角色对话',icon:'🌙',check:()=>{const a=getArchives();return Object.keys(a).some(k=>k.startsWith('tm_'))}},
