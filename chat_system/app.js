@@ -121,9 +121,15 @@ function getMasterCall(){return masterName||'前辈'}
 // ═══ Archive ═══
 const ARCHIVE_KEY='chaldea_archives';
 function getArchives(){try{return JSON.parse(localStorage.getItem(ARCHIVE_KEY)||'{}')}catch{return{}}}
-function saveArchiveData(k,d){const a=getArchives();a[k]={...d,updated_at:Date.now()};localStorage.setItem(ARCHIVE_KEY,JSON.stringify(a))}
+function saveArchiveData(k,d){const a=getArchives();a[k]={...d,updated_at:Date.now()};
+  // 清理：每个角色最多保留5条存档
+  const ids=d.servant_ids||[];
+  const prefix='chat_'+[...ids].sort((x,y)=>x-y).join('_')+'_';
+  const sameServant=Object.entries(a).filter(([key])=>key.startsWith(prefix)).sort((x,y)=>(y[1].updated_at||0)-(x[1].updated_at||0));
+  if(sameServant.length>5){sameServant.slice(5).forEach(([key])=>delete a[key]);}
+  localStorage.setItem(ARCHIVE_KEY,JSON.stringify(a))}
 function deleteArchiveEntry(k){const a=getArchives();delete a[k];localStorage.setItem(ARCHIVE_KEY,JSON.stringify(a))}
-function makeChatKey(ids){return'chat_'+[...ids].sort((a,b)=>a-b).join('_')}
+function makeChatKey(ids){return'chat_'+[...ids].sort((a,b)=>a-b).join('_')+'_'+Date.now()}
 function autoSave(){
   const tmChar = window._currentTypemoonChar;
   if(!chatHistory.length||(!currentServant&&!groupServants.length&&!tmChar))return;
