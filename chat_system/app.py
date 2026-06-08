@@ -656,7 +656,7 @@ def quiz():
 
 @app.route('/api/compatibility', methods=['POST'])
 def compatibility():
-    """Analyze servant compatibility using AI."""
+    """Analyze servant compatibility using pre-generated data."""
     data = request.json
     if not data:
         return jsonify({'error': 'No data provided'}), 400
@@ -677,135 +677,59 @@ def compatibility():
         return jsonify({'error': f'Servant {sid1} not found'}), 404
     if not profile2:
         return jsonify({'error': f'Servant {sid2} not found'}), 404
-    # Easter egg: Gilgamesh vs Artoria
-    GILGAMESH_IDS = [460, 2051]  # page_ids for Gilgamesh variants
-    ARTORIA_IDS = [225, 604, 600225, 2063, 23834, 23840]  # page_ids for Artoria variants
-    is_gilgamesh = int(sid1) in GILGAMESH_IDS or int(sid2) in GILGAMESH_IDS
-    is_artoria = int(sid1) in ARTORIA_IDS or int(sid2) in ARTORIA_IDS
-    if is_gilgamesh and is_artoria:
-        return jsonify({
-            'score': 0,
-            'analysis': '英雄王吉尔伽美什与骑士王阿尔托莉雅·潘德拉贡——圣杯战争中最经典的宿敌。一个傲慢自大却拥有世间一切宝具的英雄王，一个高洁正直誓要守护不列颠的骑士王。两人的理念从根本上对立：吉尔伽美什认为世间万物皆为自己的所有物，而阿尔托莉雅则为人民鞠躬尽瘁。这份水火不容的关系，注定了他们之间的相性为零。',
-            'fun_interaction': '吉尔伽美什：「哼，又见面了，Saber。本王说过，你终将属于我。」\n阿尔托莉雅：「王啊，我不会成为任何人的所有物。」\n吉尔伽美什：「那就让天地来见证！——Enuma Elish！」\n阿尔托莉雅：「如你所愿！——Excalibur！」\n（两道光柱在空中碰撞，整个冬木市为之震颤）'
-        })
 
-
-    name1 = profile1['name_jp'] if language == 'jp' else profile1['name_cn']
-    name2 = profile2['name_jp'] if language == 'jp' else profile2['name_cn']
-
-    # Build AI prompt for compatibility analysis
-    personality1 = profile1.get('personality', '')
-    personality2 = profile2.get('personality', '')
-    speech1 = profile1.get('speech_style', '')
-    speech2 = profile2.get('speech_style', '')
-
-    if language == 'jp':
-        sys_prompt = "あなたはFGOのキャラクター相性分析の専門家です。2人のサーヴァントの相性を分析してください。"
-        user_prompt = f"""
-サーヴァント1: {name1}
-性格: {personality1}
-口調: {speech1}
-
-サーヴァント2: {name2}
-性格: {personality2}
-口調: {speech2}
-
-以下のJSON形式で回答してください（マークダウンなし、純粋なJSONのみ）：
-{{"score": 0-100の正確な数値（整数は不可。例：73.5、42.8、88.3など）, "analysis": "相性分析（200字以内）", "fun_interaction": "二人の想像上の会話（3-4行の台本形式）"}}
-"""
-    else:
-        story1 = profile1.get('moegirl_summary', '')[:500] or personality1
-        story2 = profile2.get('moegirl_summary', '')[:500] or personality2
-        sys_prompt = "你是FGO剧情专家。基于从者的剧情背景和设定，分析他们之间的关系和相性。分数必须精确到一位小数（如73.5、42.8），不能是整数或整十整五。"
-        user_prompt = f"""
-从者1: {name1}
-剧情背景: {story1}
-性格特点: {personality1}
-
-从者2: {name2}
-剧情背景: {story2}
-性格特点: {personality2}
-
-请基于他们在FGO剧情中的实际关系来分析（如同一特异点的伙伴、主从关系、敌对关系、同一神话体系等）。
-如果两人在剧情中有直接互动，请重点描述。
-
-请用以下JSON格式回答（不要用markdown，只返回纯JSON）：
-{{"score": 0到100的数字, "analysis": "基于剧情关系的相性分析（200字以内）", "fun_interaction": "基于剧情设定的想象对话（3-4行剧本形式）"}}
-"""
-
-    messages = [
-        {'role': 'system', 'content': sys_prompt},
-        {'role': 'user', 'content': user_prompt}
-    ]
-    ai_text, err = call_ai_api(messages, temperature=0.8, max_tokens=512)
-    if err:
-        return jsonify(err), 502
-
-    try:
-
-        # Parse JSON from AI response
-        # Try to extract JSON from the response
-        ai_text = ai_text.strip()
-        # Remove markdown code fences if present
-        if ai_text.startswith('```'):
-            ai_text = ai_text.split('\n', 1)[-1]
-            if ai_text.endswith('```'):
-                ai_text = ai_text[:-3]
-            ai_text = ai_text.strip()
-
-        import random as _rnd
-        parsed = {}
-        try:
-            parsed = json.loads(ai_text)
-        except json.JSONDecodeError:
-            # Try to find JSON object with score
-            start = ai_text.find('{')
-            while start >= 0:
-                end = ai_text.find('}', start)
-                if end >= 0:
-                    candidate = ai_text[start:end+1]
-                    if '"score"' in candidate:
-                        try:
-                            parsed = json.loads(candidate)
-                            break
-                        except:
-                            pass
-                start = ai_text.find('{', start + 1)
-        
-        # Extract score with fallback
-        score_raw = parsed.get('score', None)
-        if score_raw is not None:
-            try:
-                score = float(score_raw)
-            except (ValueError, TypeError):
-                score = round(_rnd.uniform(30, 85), 1)
+    # Load pre-generated compatibility data
+    if 'compat_data' not in dir():
+        compat_path = os.path.join(_APP, 'compat_data.json')
+        if os.path.exists(compat_path):
+            with open(compat_path, 'r', encoding='utf-8') as f:
+                compat_data = json.load(f)
         else:
-            score = round(_rnd.uniform(30, 85), 1)
-        score = min(100, max(0, score))
-        # Ensure non-integer score
-        if score == int(score):
-            score = round(score + _rnd.uniform(-4.7, 4.7), 1)
-            score = min(100, max(0, score))
-        
-        analysis = parsed.get('analysis', '')
-        fun_interaction = parsed.get('fun_interaction', '')
-        
-        # If analysis is empty or looks like prompt echo, generate fallback
-        if not analysis or len(analysis) < 10 or '用户要求' in analysis or 'あなたは' in analysis:
-            analysis = f'{name1}与{name2}之间有着独特的羁绊。两人的性格和背景交织出一段值得探索的关系。'
-        if not fun_interaction:
-            fun_interaction = f'{name1}：「……」\n{name2}：「……」'
+            compat_data = {}
 
-        return jsonify({
-            'score': score,
-            'analysis': analysis,
-            'fun_interaction': fun_interaction
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    pair_key = f"{min(int(sid1),int(sid2))}_{max(int(sid1),int(sid2))}"
+    base_score = compat_data.get(pair_key, 50.0)
 
+    # Add small random variation (+/- 2) for uniqueness
+    import random as _rnd
+    score = round(base_score + _rnd.uniform(-2, 2), 1)
+    score = max(0, min(100, score))
 
-# ─── Moments Endpoint (朋友圈) ─────────────────────────────────────────────────
+    name1 = profile1.get('name_cn', '从者1')
+    name2 = profile2.get('name_cn', '从者2')
+
+    # Determine level and get analysis
+    if score >= 85: level = 'perfect'
+    elif score >= 70: level = 'great'
+    elif score >= 55: level = 'good'
+    elif score >= 40: level = 'neutral'
+    elif score >= 25: level = 'poor'
+    else: level = 'bad'
+
+    ANALYSIS = {
+        'perfect': ['两人的羁绊如同命中注定，无论是性格还是理念都完美契合。', '这是一段跨越时空的缘分，彼此的存在让对方变得更完整。', '从者之间的羁绊达到了极致，共同经历铸就了不可动摇的信任。', '两人堪称典范，无论是战斗配合还是日常相处，都展现出令人羡慕的默契。'],
+        'great': ['两人的相性极佳，彼此之间有着深厚的羁绊。', '这对组合有着令人惊叹的默契，很多方面都能互补。', '两人之间有着天然的亲和力，是一对可靠的伙伴。', '他们的关系建立在相互理解和尊重之上。'],
+        'good': ['两人的相性不错，能够和谐相处。', '这对组合有着稳定的相性，能够理解对方的想法。', '两人之间的关系平稳而温暖，平淡中见真情。', '他们的相性处于中上水平，多一些沟通就能成为好搭档。'],
+        'neutral': ['两人的相性一般，既没有特别的默契，也没有明显的冲突。', '这对组合的相性中规中矩。', '他们之间的关系平淡如水，没有特别的羁绊。', '两人的相性处于中立水平，配合完成任务没问题。'],
+        'poor': ['两人的相性偏低，性格差异让他们很难产生共鸣。', '这对组合的相性一般偏下，需要更多磨合。', '他们之间的关系有些微妙，很难真正走近彼此。', '两人的相性有待提升，放下偏见也许能发现闪光点。'],
+        'bad': ['两人的相性较差，性格和理念上的冲突让他们很难和谐相处。', '这对组合的相性不佳，矛盾需要很长时间才能化解。', '他们之间的关系紧张，相处时充满微妙的火药味。', '两人的相性偏低，建议保持适当距离。'],
+    }
+
+    INTERACTIONS = {
+        'perfect': [f'{name1}：「今天一起训练吧？」\n{name2}：「正有此意。」\n（两人相视一笑，并肩走向训练场）', f'{name1}：「你最近还好吗？」\n{name2}：「有你在，一切都好。」\n（温暖的午后，两人的影子重叠在一起）'],
+        'great': [f'{name1}：「这次的任务，我们一组吧？」\n{name2}：「没问题，交给我。」\n（两人默契地点头）', f'{name1}：「谢谢你一直以来的帮助。」\n{name2}：「不用客气，我们是伙伴。」'],
+        'good': [f'{name1}：「今天的天气真不错。」\n{name2}：「是啊，适合散步。」\n（两人在庭院中悠闲地走着）', f'{name1}：「要不要一起喝茶？」\n{name2}：「好啊，我正好带了点心。」'],
+        'neutral': [f'{name1}：「……」\n{name2}：「……」\n（两人沉默地坐着，气氛有些尴尬）', f'{name1}：「那个……你好。」\n{name2}：「嗯，你好。」\n（礼貌而疏远的问候）'],
+        'poor': [f'{name1}：「哼。」\n{name2}：「……」\n（两人擦肩而过，谁也没有停下脚步）', f'{name1}：「我不需要你的帮助。」\n{name2}：「随便你。」'],
+        'bad': [f'{name1}：「离我远点。」\n{name2}：「正合我意。」\n（两人背对背，各自走向不同的方向）', f'{name1}：「我们之间没什么好说的。」\n{name2}：「那就别说了。」'],
+    }
+
+    idx = (int(sid1) + int(sid2)) % len(ANALYSIS[level])
+    analysis = ANALYSIS[level][idx]
+    interaction = INTERACTIONS[level][idx]
+
+    return jsonify({'score': score, 'analysis': analysis, 'fun_interaction': interaction})
+
 
 @app.route('/api/network', methods=['POST'])
 def network():
