@@ -895,6 +895,13 @@ def moments():
                     pid = -(int(k) + 1)
                     tm_chars[pid] = v
 
+    # 加载FGO预设朋友圈
+    fgo_moments = {}
+    fgo_moments_path = os.path.join(_APP, 'fgo_moments.json')
+    if os.path.exists(fgo_moments_path):
+        with open(fgo_moments_path, 'r', encoding='utf-8') as f:
+            fgo_moments = json.load(f)
+
     posts = []
     for sid in servant_ids:
         name_cn = ''
@@ -984,26 +991,10 @@ def moments():
                 continue
             name_cn = profile['name_cn']
             name_jp = profile['name_jp']
-            personality = profile.get('personality', '')
-            speech = profile.get('speech_style', '')
 
-        if language == 'jp':
-            sys_prompt = f"""あなたは{name_jp}です。性格：{personality}。口調：{speech}。
-SNSの朋友圈（WeChatモーメンツ）に投稿してください。
-短くて面白い、キャラクターに合った1〜2文の投稿を1つだけ書いてください。
-マークダウンなし、投稿内容のみを返してください。"""
-        else:
-            sys_prompt = f"""你是{name_cn}。性格：{personality}。说话风格：{speech}。
-请发一条朋友圈（类似微信朋友圈的动态）。
-要求：简短有趣、符合角色性格，1-2句话。
-不要用markdown，只返回朋友圈正文内容。"""
-
-        messages = [
-            {'role': 'system', 'content': sys_prompt},
-            {'role': 'user', 'content': '发一条朋友圈吧！' if language == 'cn' else '投稿してください！'}
-        ]
-        content, err = call_ai_api(messages, temperature=0.9, max_tokens=256)
-        if content:
+            # FGO从者用预设朋友圈
+            moments_list = fgo_moments.get(name_cn, [f'{name_cn}发了一条朋友圈'])
+            content = random.choice(moments_list)
             posts.append({
                 'servant_id': sid,
                 'servant_name_cn': name_cn,
@@ -1012,16 +1003,7 @@ SNSの朋友圈（WeChatモーメンツ）に投稿してください。
                 'likes': random.randint(1, 999),
                 'timestamp': random.randint(1609459200, 1735689600)
             })
-        else:
-            # Fallback if AI call failed
-            posts.append({
-                'servant_id': sid,
-                'servant_name_cn': name_cn,
-                'servant_name_jp': name_jp,
-                'content': '今天天气真好~' if language == 'cn' else '今日はいい天気ですね〜',
-                'likes': random.randint(1, 999),
-                'timestamp': random.randint(1609459200, 1735689600)
-            })
+            continue
 
     return jsonify({'posts': posts})
 
