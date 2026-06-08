@@ -209,7 +209,10 @@ function resumeChat(key){
 function deleteArchiveConfirm(key){if(!confirm('确定删除这条对话记录？'))return;deleteArchiveEntry(key);renderArchiveList()}
 function exportArchive(key){
   const data=getArchives()[key];if(!data)return;
-  let text='# CHALDEA 对话记录\n# '+data.servant_names+(data.is_group?' (群聊)':'')+'\n# 御主: '+(data.master_name||'前辈')+'\n\n';
+  let text='# CHALDEA 对话记录\n';
+  text+='# [META] '+JSON.stringify({servant_ids:data.servant_ids,servant_names:data.servant_names,master_name:data.master_name,language:data.language,is_group:data.is_group})+'\n';
+  text+='# '+data.servant_names+(data.is_group?' (群聊)':'')+'\n';
+  text+='# 御主: '+(data.master_name||'前辈')+'\n\n';
   for(const msg of(data.history||[])){const name=msg.role==='user'?(data.master_name||'前辈'):(msg.servant_name_cn||'从者');text+=name+': '+msg.content+'\n\n'}
   downloadText(text,'chaldea_'+key+'.txt');
 }
@@ -229,6 +232,63 @@ async function shareArchive(key){
   }catch(e){
     alert('网络错误: '+e.message);
   }
+}
+
+function importTXT(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const text=e.target.result;
+    const lines=text.split('\n');
+    let meta=null;
+    let history=[];
+    let currentRole=null;
+    let currentContent=[];
+    
+    for(const line of lines){
+      // Parse META line
+      if(line.startsWith('# [META] ')){
+        try{meta=JSON.parse(line.slice(9));}catch(e){}
+        continue;
+      }
+      // Skip comment lines
+      if(line.startsWith('#'))continue;
+      
+      // Parse dialogue lines (Name: content)
+      const match=line.match(/^(.+?):\s(.+)$/);
+      if(match){
+        // Save previous message
+        if(currentRole&&currentContent.length){
+          history.push({role:currentRole,content:currentContent.join('\n').trim()});
+        }
+        const name=match[1].trim();
+        const content=match[2].trim();
+        // Determine role by checking if it's the master name
+        const masterName=meta?meta.master_name:'';
+        if(name===masterName||name==='前辈'||name==='御主'){
+          currentRole='user';
+        }else{
+          currentRole='assistant';
+        }
+        currentContent=[content];
+      }else if(line.trim()&&currentRole){
+        currentContent.push(line.trim());
+      }
+    }
+    // Save last message
+    if(currentRole&&currentContent.length){
+      history.push({role:currentRole,content:currentContent.join('\n').trim()});
+    }
+    
+    if(!history.length){alert('文件格式不正确或为空');return;}
+    if(!meta)meta={servant_ids:[],servant_names:'未知',master_name:'',language:'cn',is_group:false};
+    
+    const key='import_'+Date.now();
+    saveArchiveData(key,{...meta,history:history});
+    renderArchiveList();
+    alert('导入成功！共'+history.length+'条消息');
+  };
+  reader.readAsText(file);
 }
 
 async function importByCode(){
