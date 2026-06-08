@@ -1,0 +1,12 @@
+{
+  "appId": "com.chaldea.ai",
+  "appName": "Chaldea AI",
+  "webDir": "chat_system",
+  "server": {
+    "url": "https://chaldea-ai.onrender.com",
+    "cleartext": true
+  },
+  "android": {
+    "backgroundColor": "#f8f9fa"
+  }
+}
