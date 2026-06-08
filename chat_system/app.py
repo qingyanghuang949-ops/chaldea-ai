@@ -344,9 +344,9 @@ import time as _time
 import threading as _threading
 _rate_lock = _threading.Lock()
 _rate_data = {}  # ip -> [timestamps]
-RATE_LIMIT = 10        # max requests per window
+RATE_LIMIT = 9999       # max requests per window (effectively unlimited)
 RATE_WINDOW = 60       # window in seconds
-RATE_MAX_WAIT = 90     # max seconds to wait before giving up
+RATE_MAX_WAIT = 0      # no wait — instant response
 
 def _rate_limit_wait():
     """Wait until a rate slot opens. Returns True if OK, False if max wait exceeded."""
