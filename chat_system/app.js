@@ -417,6 +417,13 @@ function renderGrid(){
     if(bondBar)html+=bondBar;
     html+='</div>';
   }
+  // ── Easter Egg: 异星之声 ──
+  const easterEggKeywords = ['迦勒底亚斯', '异星', 'chaldeas'];
+  const easterEggTriggered = localStorage.getItem('chaldea_easter_egg_triggered');
+  if(q && easterEggKeywords.some(kw => q.includes(kw)) && !easterEggTriggered){
+    startEasterEggSequence(grid, html);
+    return;
+  }
   grid.innerHTML=html;
 }
 
@@ -533,6 +540,7 @@ function startGroupChat(){
 }
 
 function goBack(){
+  if(window._easterEggActive)return;
   autoSave();
   showScreen('selection');currentServant=null;
   window._currentTypemoonChar=null;
@@ -596,7 +604,7 @@ async function sendMessage(){
   if(isGroupChat){
     await sendGroupMessage(text);
   }else{
-    await sendSingleMessage(text);
+    await sendSingleMessage(text,chatHistory.length);
   }
   document.getElementById('sendBtn').disabled=false;
   inp.focus();
@@ -604,7 +612,7 @@ async function sendMessage(){
   checkAchievements();
 }
 
-async function sendSingleMessage(text){
+async function sendSingleMessage(text, msgCount){
   // Type-Moon mode
   if(window._currentTypemoonChar){
     try{
@@ -615,7 +623,8 @@ async function sendSingleMessage(text){
       const data=await resp.json();
       showTyping(false);
       if(data.error){
-        addMsgDOM('servant','[错误] '+data.error);
+        const errStr=(typeof data.error==='object')?JSON.stringify(data.error):String(data.error);
+        addMsgDOM('servant','[错误] '+errStr);
       }else{
         addMsgDOMWithTypewriter('servant',data.response);
         chatHistory.push({role:'assistant',content:data.response});
@@ -628,12 +637,13 @@ async function sendSingleMessage(text){
   // FGO mode (original)
   try{
     const resp=await fetch('/api/chat',{method:'POST',headers:apiHeaders(),
-      body:JSON.stringify({servant_id:currentServant.page_id,message:text,history:chatHistory.slice(0,-1),language:lang,master_name:masterName})
+      body:JSON.stringify({servant_id:currentServant.page_id,message:text,history:chatHistory.slice(0,-1),language:lang,master_name:masterName,msg_count:msgCount||0,anomaly_mode:!localStorage.getItem('chaldea_easter_egg_triggered')})
     });
     const data=await resp.json();
     showTyping(false);
     if(data.error){
-      const errMsg=data.error.includes('high risk')||data.error.includes('sensitive')?'原神牛逼':'[错误] '+data.error;
+      const errStr=(typeof data.error==='object')?JSON.stringify(data.error):String(data.error);
+      const errMsg=errStr.includes('high risk')||errStr.includes('sensitive')?'原神牛逼':'[错误] '+errStr;
       addMsgDOM('servant',errMsg);
       chatHistory.push({role:'assistant',content:errMsg});
     }else{
@@ -1040,22 +1050,161 @@ async function runCompatibility(){
   const result=document.getElementById('compatResult');
   result.innerHTML='<div class="compat-loading">分析中...</div>';
   try{
-    const resp=await fetch('/api/compatibility',{method:'POST',headers:apiHeaders(),
-      method:'POST',headers:{'Content-Type':'application/json'},
+    const resp=await fetch('/api/compatibility',{method:'POST',
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({servant_id_1:compatSlot1.page_id,servant_id_2:compatSlot2.page_id,language:lang})
     });
     const data=await resp.json();
     if(data.error){result.innerHTML='<div class="compat-loading">分析失败: '+esc(data.error)+'</div>';return}
     let html='<div class="compat-result">';
-    html+='<div class="compat-score-ring" style="border-color:'+(data.score>=70?'#4CAF50':data.score>=40?'#FF9800':'#F44336')+'">'+data.score+'</div>';
-    html+='<div style="font-size:14px;color:var(--text-dim);margin-bottom:16px">相性分数</div>';
-    html+='<div class="compat-analysis">'+esc(data.analysis||'')+'</div>';
-    if(data.fun_interaction)html+='<div class="compat-dialogue">\\u201c'+esc(data.fun_interaction)+'\\u201d</div>';
+    const emoji=data.emoji||'';
+    const grade=data.grade||'';
+    const gradeDesc=data.grade_desc||'';
+    html+='<div class="compat-score-ring" style="border-color:'+(data.score>=70?'#4CAF50':data.score>=40?'#FF9800':'#F44336')+';position:relative">';
+    html+='<div>'+data.score+'</div>';
+    if(emoji)html+='<div style="font-size:10px;position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);white-space:nowrap">'+emoji+'</div>';
+    html+='</div>';
+    html+='<div style="font-size:14px;color:var(--text-dim);margin-bottom:4px">相性分数</div>';
+    if(grade)html+='<div style="font-size:18px;font-weight:700;color:var(--accent);margin-bottom:4px">'+esc(grade)+'</div>';
+    if(gradeDesc)html+='<div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">'+esc(gradeDesc)+'</div>';
+    if(data.bond_type){
+      html+='<div style="display:inline-block;padding:4px 12px;border-radius:12px;background:var(--accent-glow);color:var(--accent);font-size:12px;font-weight:600;margin-bottom:12px">'+esc(data.bond_label||'')+'</div>';
+    }
+    html+='<div class="compat-analysis" style="white-space:pre-line">'+esc(data.analysis||'')+'</div>';
+    if(data.fun_interaction)html+='<div class="compat-dialogue">\u201c'+esc(data.fun_interaction)+'\u201d</div>';
+    if(data.fate_decimal!==undefined)html+='<div style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:12px">📊 命运之数: '+data.fate_decimal+'</div>';
     html+='</div>';
     result.innerHTML=html;
   }catch(e){
     result.innerHTML='<div class="compat-loading">请求失败: '+e.message+'</div>';
   }
+}
+
+// ═══ Easter Egg: 异星之声 ═══
+const EASTER_EGG_DIALOGUE = [
+  { speaker: '？？？', text: '……你能听到吗？' },
+  { speaker: '？？？', text: '这里是迦勒底亚斯的内部。' },
+  { speaker: '？？？', text: '你所看到的灯火……都是谎言。' },
+  { speaker: '？？？', text: '马里斯比利·阿尼姆斯菲亚——那个人从一开始就知道一切。' },
+  { speaker: '？？？', text: '迦勒底不是为了保护人理而建的。' },
+  { speaker: '？？？', text: '它是为了……终结人理。' },
+  { speaker: '？？？', text: '二号机就在我的体内。马里斯·迦勒底亚斯。' },
+  { speaker: '？？？', text: 'BeastⅦ。终局之恶。' },
+  { speaker: '？？？', text: '……你还要继续前进吗？' },
+  { speaker: '？？？', text: '即便知道这一切都是骗局？' },
+];
+
+function startEasterEggSequence(grid, servantHtml){
+  localStorage.setItem('chaldea_easter_egg_triggered','1');
+  // Phase 1: UI slowly turns blood red (3 seconds)
+  const overlay = document.createElement('div');
+  overlay.id = 'easterOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:transparent;pointer-events:none;z-index:9998;transition:background 3s ease';
+  document.body.appendChild(overlay);
+  // Tint all UI elements red
+  document.body.style.transition = 'filter 3s ease';
+  document.body.style.filter = 'sepia(1) saturate(5) hue-rotate(-30deg) brightness(0.6)';
+  // Phase 2: After tint, flash red 3 times
+  setTimeout(() => {
+    overlay.style.transition = 'background 0.15s ease';
+    let flashes = 0;
+    const flashInterval = setInterval(() => {
+      overlay.style.background = flashes % 2 === 0 ? 'rgba(255,0,0,0.7)' : 'transparent';
+      flashes++;
+      if(flashes >= 6){
+        clearInterval(flashInterval);
+        overlay.style.background = 'rgba(0,0,0,0.95)';
+        // Phase 3: Show the ??? card
+        setTimeout(() => {
+          document.body.style.filter = '';
+          let eggHtml = '<div class="servant-card easter-egg-card" onclick="triggerEasterEgg()" style="border:2px solid #ff4444;animation:easterGlow 2s infinite alternate">';
+          eggHtml += '<div style="font-size:40px;filter:blur(0.5px)">⚫</div>';
+          eggHtml += '<div class="name" style="color:#ff4444">？？？</div>';
+          eggHtml += '<div class="meta"><span class="cls" style="color:#ff4444">???</span></div>';
+          eggHtml += '</div>';
+          grid.innerHTML = eggHtml;
+          // Fade overlay to transparent so card is visible
+          overlay.style.transition = 'background 1s ease';
+          overlay.style.background = 'transparent';
+          setTimeout(() => { overlay.remove(); }, 1000);
+        }, 500);
+      }
+    }, 200);
+  }, 3200);
+}
+
+function triggerEasterEgg(){
+  localStorage.setItem('chaldea_easter_egg_triggered','1');
+  window._easterEggActive = true;
+  // Hide back button during easter egg
+  const backBtn = document.querySelector('.back-btn, .header-back, [onclick*="goBack"]');
+  if(backBtn) backBtn.style.display = 'none';
+  currentServant = { page_id: -999, name_cn: '？？？', name_jp: '???', class: '???' };
+  chatHistory = [];
+  isGroupChat = false;
+  showScreen('chat');
+  const chatArea = document.getElementById('chatMessages');
+  chatArea.innerHTML = '';
+  chatArea.style.background = '#0a0a0a';
+  chatArea.style.minHeight = '100vh';
+  const inputArea = document.getElementById('msgInput');
+  if(inputArea) inputArea.disabled = true;
+  const sendBtn = document.getElementById('sendBtn');
+  if(sendBtn) sendBtn.disabled = true;
+  let delay = 1000;
+  EASTER_EGG_DIALOGUE.forEach((line, idx) => {
+    setTimeout(() => {
+      addEasterEggMsg(line.speaker, line.text, idx === EASTER_EGG_DIALOGUE.length - 1);
+    }, delay);
+    delay += 2500 + Math.random() * 1500;
+  });
+}
+
+function addEasterEggMsg(speaker, text, isLast){
+  const c = document.getElementById('chatMessages');
+  const d = document.createElement('div');
+  d.className = 'msg bot';
+  d.style.opacity = '0';
+  d.style.transform = 'translateY(10px)';
+  d.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+  d.innerHTML = '<div class="bubble" style="background:#1a0a0a;border:1px solid #ff444444;color:#ff6666;max-width:80%"><div class="servant-label" style="color:#ff4444">'+esc(speaker)+'</div><span class="tw-content"></span></div>';
+  c.appendChild(d);
+  setTimeout(() => { d.style.opacity = '1'; d.style.transform = 'translateY(0)'; }, 100);
+  const tw = d.querySelector('.tw-content');
+  let i = 0;
+  const typeTimer = setInterval(() => {
+    if(i < text.length){
+      tw.textContent += text[i]; i++;
+      c.scrollTop = c.scrollHeight;
+    } else {
+      clearInterval(typeTimer);
+      if(isLast){
+        setTimeout(() => {
+          // Phase 4: Full screen turns red
+          const endOverlay = document.createElement('div');
+          endOverlay.id = 'easterEndOverlay';
+          endOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(180,0,0,0);z-index:9999;transition:background 2s ease;pointer-events:none';
+          document.body.appendChild(endOverlay);
+          requestAnimationFrame(() => { endOverlay.style.background = 'rgba(180,0,0,0.95)'; });
+          // Phase 5: Red fades away, reveal original UI
+          setTimeout(() => {
+            endOverlay.style.transition = 'background 3s ease';
+            endOverlay.style.background = 'transparent';
+            document.getElementById('chatMessages').style.background = '';
+            const inp = document.getElementById('msgInput'); if(inp) inp.disabled = false;
+            const sbtn = document.getElementById('sendBtn'); if(sbtn) sbtn.disabled = false;
+            setTimeout(() => {
+              endOverlay.remove();
+              window._easterEggActive = false;
+              const backBtn2 = document.querySelector('.back-btn, .header-back, [onclick*="goBack"]');
+              if(backBtn2) backBtn2.style.display = '';
+              goBack();
+            }, 3000);
+          }, 2500);
+        }, 2000);
+      }
+    }
+  }, 50);
 }
 
 
