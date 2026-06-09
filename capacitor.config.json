@@ -3,7 +3,7 @@
   "appName": "Chaldea AI",
   "webDir": "chat_system",
   "server": {
-    "url": "https://chaldea-ai.onrender.com",
+    "url": "http://47.79.3.0",
     "cleartext": true
   },
   "android": {
